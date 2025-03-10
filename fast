@@ -1,0 +1,11 @@
+<?xml version='1.0'?>
+<gz version='1.0'>
+  <executable name='world'>
+    <command>gz sim world.sdf</command>
+  </executable>
+
+  <executable name='SensorCode'>
+    <command>./build/SensorCode</command>
+  </executable>
+
+</gz>
