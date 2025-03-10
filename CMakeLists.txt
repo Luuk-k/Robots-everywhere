@@ -3,9 +3,9 @@ cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 project(SensorCode)
 
 # Find the Gazebo msgs library
-find_package(gz-msgs11 QUIET REQUIRED)
-find_package(gz-transport14 QUIET REQUIRED OPTIONAL_COMPONENTS log)
-set(GZ_TRANSPORT_VER ${gz-transport14_VERSION_MAJOR})
+find_package(gz-msgs10 QUIET REQUIRED)
+find_package(gz-transport13 QUIET REQUIRED OPTIONAL_COMPONENTS log)
+set(GZ_TRANSPORT_VER ${gz-transport13_VERSION_MAJOR})
 
 include_directories(${CMAKE_BINARY_DIR})
 
