@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/luuk/Documents/Robots-everywhere/build -isystem /usr/include/gz/transport13 -isystem /usr/include/gz/utils2 -isystem /usr/include/gz/msgs10 -isystem /usr/include/gz/math7 -isystem /usr/include/uuid
+CXX_INCLUDES = -I/home/rutz/projects/Robots-everywhere/build -isystem /usr/include/gz/msgs11 -isystem /usr/include/gz/math8 -isystem /usr/include/gz/utils3 -isystem /usr/include/gz/transport14 -isystem /usr/include/uuid
 
 CXX_FLAGS = -I/usr/include -I/usr/include/uuid
 

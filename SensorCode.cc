@@ -1,6 +1,5 @@
-#include <gz/msgs/twist.pb.h>
-#include <gz/msgs/imu.pb.h>
-#include <gz/transport/Node.hh>
+#include <gz/msgs.hh>
+#include <gz/transport.hh>
 
 std::string topic_pub = "/pos";   //publish to this topic
 gz::transport::Node node;

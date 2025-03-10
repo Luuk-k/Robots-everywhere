@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/luuk/Documents/Robots-everywhere/SensorCode.cc" "CMakeFiles/SensorCode.dir/SensorCode.cc.o" "gcc" "CMakeFiles/SensorCode.dir/SensorCode.cc.o.d"
+  "/home/rutz/projects/Robots-everywhere/SensorCode.cc" "CMakeFiles/SensorCode.dir/SensorCode.cc.o" "gcc" "CMakeFiles/SensorCode.dir/SensorCode.cc.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.
