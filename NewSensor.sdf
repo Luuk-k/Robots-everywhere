@@ -1,8 +1,6 @@
  <?xml version="1.0" ?>
 <sdf version="1.8">
-    <plugin filename="gz-sim-imu-system"
-        name="gz::sim::systems::Imu">
-    </plugin>
+
     <model name='sensor'>
         <link name='sensorlink'>
         <sensor name="imu_sensor" type="imu">
