@@ -14,6 +14,10 @@ double posx = 0;
 double posy = 0;
 double posz = 0;
 
+double angpx = 0;
+double angpy = 0;
+double angpz = 0;
+
 double dt = 0.01;
 double timestamp = 0;
 
@@ -29,6 +33,11 @@ void cb(const gz::msgs::IMU &_msg)
   double linay = _msg.linear_acceleration().y();
   double linaz = _msg.linear_acceleration().z();
 
+  double angvx = _msg.angular_velocity().x();
+  double angvy = _msg.angular_velocity().y();
+  double angvz = _msg.angular_velocity().z();
+
+
   velx = velx + linax * dt;
   vely = vely + linay * dt;
   velz = velz + linaz * dt;
@@ -37,13 +46,19 @@ void cb(const gz::msgs::IMU &_msg)
   posy = posy + vely * dt;
   posz = posz + velz * dt;
 
+  angpx = angpx + angvx * dt;
+  angpy = angpy + angvy * dt;
+  angpz = angpz + angvz * dt;
+
   timestamp = timestamp + dt;
 
   printf("Time =%f s\n", timestamp);
   printf("Orientation:\nx=%f, y=%f, z=%f\n", orix, oriy, oriz);
   printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
   printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
-  printf("Lin pos:\nx=%f, y=%f, z=%f\n\n\n", posx, posy, posz);
+  printf("Lin Pos:\nx=%f, y=%f, z=%f\n", posx, posy, posz);
+  printf("Ang Vel:\nx=%f, y=%f, z=%f\n", angvx, angvy, angvz);
+  printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
   printf("------------------------------------\n");
 
 
