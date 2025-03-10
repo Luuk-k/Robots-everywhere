@@ -34,6 +34,7 @@
             </attenuation>
             <direction>-0.5 0.1 -0.9</direction>
         </light>
+
         <model name="ship">
         <static>true</static>
             <link name="body">
@@ -54,8 +55,10 @@
                 </mesh>
                 </geometry>
             </collision>
+        </link>
         </model>
-        <model name="ship">
+
+        <model name="robot">
         <static>true</static>
             <link name="body">
             <pose>0 0 0 0 0 0</pose>
