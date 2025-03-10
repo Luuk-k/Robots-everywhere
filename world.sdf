@@ -53,6 +53,9 @@
             </collision>
 
             </link>
+            <include>
+                <uri>model://NewSensor.sdf</uri>
+            </include>
         </model>
 
     </world>
