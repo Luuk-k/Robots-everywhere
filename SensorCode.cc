@@ -15,6 +15,7 @@ double posy = 0;
 double posz = 0;
 
 double dt = 0.01;
+double timestamp = 0;
 
 void cb(const gz::msgs::IMU &_msg)
 {
@@ -28,12 +29,17 @@ void cb(const gz::msgs::IMU &_msg)
   double linay = _msg.linear_acceleration().y();
   double linaz = _msg.linear_acceleration().z();
 
-  velx=velx+linax * dt;
+  velx = velx + linax * dt;
+  vely = vely + linay * dt;
+  velz = velz + linaz * dt;
 
   posx = posx + velx * dt;
+  posy = posy + vely * dt;
+  posz = posz + velz * dt;
 
+  timestamp = timestamp + dt;
 
-
+  printf("Time =%f s\n", timestamp);
   printf("Orientation:\nx=%f, y=%f, z=%f\n", orix, oriy, oriz);
   printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
   printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
