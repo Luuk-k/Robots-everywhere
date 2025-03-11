@@ -1,3 +1,0 @@
-/home/luuk/Documents/Robots-everywhere/build/CMakeFiles/SensorCode.dir
-/home/luuk/Documents/Robots-everywhere/build/CMakeFiles/edit_cache.dir
-/home/luuk/Documents/Robots-everywhere/build/CMakeFiles/rebuild_cache.dir
