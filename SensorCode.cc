@@ -15,6 +15,7 @@ void cb(const gz::msgs::IMU &_msg)
 
 
   printf("x=%f, y=%f, z=%f\n", posx, posy, posz);
+  printf("test");
 
   pub.Publish(data);
 }
