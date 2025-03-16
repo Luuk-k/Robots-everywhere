@@ -5,6 +5,15 @@ std::string topic_pub = "/pos";   //publish to this topic
 gz::transport::Node node;
 auto pub = node.Advertise<gz::msgs::Twist>(topic_pub);
 
+class Vector{
+  public: double x, y, z;
+};
+
+class face{
+public: Vector v1, v2, v3 ,v4;
+};
+
+
 double velx = 0;
 double vely = 0;
 double velz = 0;
@@ -20,6 +29,8 @@ double angpz = 0;
 double dt = 0.01;
 double timestamp = 0;
 
+Vector OrientToNormal(double, double, double, double);
+
 void cb(const gz::msgs::IMU &_msg)
 {
 
@@ -27,6 +38,9 @@ void cb(const gz::msgs::IMU &_msg)
   double orix = _msg.orientation().x();
   double oriy = _msg.orientation().y();
   double oriz = _msg.orientation().z();
+  double oriw = _msg.orientation().w();
+
+  Vector ori = OrientToNormal(orix, oriy, oriz, oriw);
 
   double linax = _msg.linear_acceleration().x();
   double linay = _msg.linear_acceleration().y();
@@ -52,7 +66,7 @@ void cb(const gz::msgs::IMU &_msg)
   timestamp = timestamp + dt;
 
   printf("Time =%f s\n", timestamp);
-  printf("Orientation:\nx=%f, y=%f, z=%f\n", orix, oriy, oriz);
+  printf("Orientation:\nx=%f, y=%f, z=%f\n", ori.x, ori.y, ori.z);
   printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
   printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
   printf("Lin Pos:\nx=%f, y=%f, z=%f\n", posx, posy, posz);
@@ -65,6 +79,127 @@ void cb(const gz::msgs::IMU &_msg)
   pub.Publish(data);
 }
 
+Vector* GetVertices(){
+  FILE * file = fopen("boat.obj", "r");
+  if(file == NULL){
+    printf("CANT OPEN FILE\n");
+    exit(1);
+  }
+  int count = 0;
+  while(1){
+    char lineHeader[128];
+    int res = fscanf(file, "%s", lineHeader);
+    if (res == EOF) break;
+    if (strcmp (lineHeader, "v") == 0){
+      count++;
+    }
+  }
+  Vector * verticesp = (Vector*)malloc(count * sizeof(Vector));
+  count = 0;
+  rewind(file);
+  while(1){
+    char lineHeader[128];
+    int res = fscanf(file, "%s", lineHeader);
+    if (res == EOF) break;
+    if (strcmp (lineHeader, "v") == 0){
+      Vector vertex;
+      fscanf(file, "%lf %lf %lf\n", &vertex.x, &vertex.y, &vertex.z);
+      verticesp[count]=vertex;
+      count++;
+    }
+  }
+  fclose(file);
+  return verticesp;
+}
+
+face * GetFaces(Vector* verticesp, int* facec){
+  FILE * file = fopen("boat.obj", "r");
+  if(file == NULL){
+    printf("CANT OPEN FILE\n");
+    exit(1);
+  }
+  int count = 0;
+  while(1){
+    char lineHeader[128];
+    int res = fscanf(file, "%s", lineHeader);
+    if (res == EOF) break;
+    if (strcmp (lineHeader, "f") == 0){
+      count++;
+    }
+  }
+  face * facep = (face*)malloc(count * sizeof(face));
+  count = 0;
+  rewind(file);
+  while(1){
+    char lineHeader[128];
+    int res = fscanf(file, "%s", lineHeader);
+    if (res == EOF) break;
+    if (strcmp (lineHeader, "f") == 0){
+      face facer;
+      int vertex1, vertex2, vertex3, vertex4;
+      int dump;
+      fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d\n", &vertex1, &dump, &dump, &vertex2, &dump, &dump, &vertex3, &dump, &dump, &vertex4, &dump, &dump);
+      facer.v1=verticesp[vertex1-1];
+      facer.v2=verticesp[vertex2-1];
+      facer.v3=verticesp[vertex3-1];
+      facer.v4=verticesp[vertex4-1];
+      facep[count]=facer;
+      count++;
+    }
+  }
+  *facec = count;
+  return facep;
+}
+
+Vector * GetCenterOfMass(face* facep, int facec){
+  Vector * comp = (Vector*)malloc(facec * sizeof(Vector));
+  face facer;
+  Vector com;
+  for(int i = 0; i<facec; i++){
+    facer = facep[i];
+    com.x = (facer.v1.x + facer.v2.x + facer.v3.x + facer.v4.x)/4;
+    com.y = (facer.v1.y + facer.v2.y + facer.v3.y + facer.v4.y)/4;
+    com.z = (facer.v1.z + facer.v2.z + facer.v3.z + facer.v4.z)/4;
+    comp[i] = com;
+  }
+  return comp;
+}
+
+double Distance(Vector v1, Vector v2){
+  double dist = sqrt(pow(v1.x-v2.x,2)+pow(v1.y-v2.y,2)+pow(v1.z-v2.z,2));
+  return dist;
+}
+
+Vector * GetNormals(face* facep, int facec){
+  Vector * normalp = (Vector*)malloc(facec * sizeof(Vector));
+  face facer;
+  Vector normal, v1,v2,v3,v4;
+  double length;
+  for(int i = 0; i<facec; i++){
+    facer = facep[i];
+    v1=facer.v1;
+    v2=facer.v2;
+    v3=facer.v3;
+    v4=facer.v4;
+    normal.x = (v1.y-v2.y)*(v1.z+v2.z)+(v2.y-v3.y)*(v2.z+v3.z)+(v3.y-v4.y)*(v3.z+v4.z)+(v4.y-v1.y)*(v4.z+v1.z);
+    normal.y = (v1.z-v2.z)*(v1.x+v2.x)+(v2.z-v3.z)*(v2.x+v3.x)+(v3.z-v4.z)*(v3.x+v4.x)+(v4.z-v1.z)*(v4.x+v1.x);
+    normal.z = (v1.x-v2.x)*(v1.y+v2.y)+(v2.x-v3.x)*(v2.y+v3.y)+(v3.x-v4.x)*(v3.y+v4.y)+(v4.x-v1.x)*(v4.y+v1.y);
+    length = sqrt(pow(normal.x,2)+pow(normal.y,2)+pow(normal.z,2));
+    normal.x=normal.x/length;
+    normal.y=normal.y/length;
+    normal.z=normal.z/length;
+    normalp[i]=normal;
+  }
+  return normalp;
+}
+Vector OrientToNormal(double x, double y, double z, double w){
+  Vector normal;
+  normal.x = 2*(x*z-w*y);
+  normal.y = 2*(y*z+w*x);
+  normal.z = 1-2*(x*x+y*y);
+  return normal;
+}
+
 int main(int argc, char **argv)
 {
   std::string topic_sub = "/imu";   // subscribe to this topic
@@ -75,7 +210,18 @@ int main(int argc, char **argv)
     return -1;
   }
   // Zzzzzz.
-  gz::transport::waitForShutdown();
 
+  Vector * verticesp;
+  verticesp = GetVertices();
+  face * facep;
+  int facec; //facecount
+  facep = GetFaces(verticesp, &facec);
+  Vector * comp;
+  comp = GetCenterOfMass(facep, facec);
+  Vector * normalp;
+  normalp = GetNormals(facep, facec);
+
+  gz::transport::waitForShutdown();
+  free(verticesp);
   return 0;
 }
