@@ -29,7 +29,14 @@ double angpz = 0;
 double dt = 0.01;
 double timestamp = 0;
 
+int facec;
+Vector * comp;
+Vector * normalp;
+
 Vector OrientToNormal(double, double, double, double);
+double * dist(Vector);
+Vector estcomf(double*, Vector);
+
 
 void cb(const gz::msgs::IMU &_msg)
 {
@@ -65,15 +72,26 @@ void cb(const gz::msgs::IMU &_msg)
 
   timestamp = timestamp + dt;
 
-  printf("Time =%f s\n", timestamp);
-  printf("Orientation:\nx=%f, y=%f, z=%f\n", ori.x, ori.y, ori.z);
-  printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
-  printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
-  printf("Lin Pos:\nx=%f, y=%f, z=%f\n", posx, posy, posz);
-  printf("Ang Vel:\nx=%f, y=%f, z=%f\n", angvx, angvy, angvz);
-  printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
-  printf("------------------------------------\n");
+  Vector estpos;
+  estpos.x = posx;
+  estpos.y = posy;
+  estpos.z = posz;
 
+  double * disp;
+  disp = dist(estpos);
+  Vector estcom;
+  estcom = estcomf(disp, ori);
+
+
+  printf("Time =%f s\n", timestamp);
+  printf("Orientation:\n x=%f, y=%f, z=%f\n", ori.x, ori.y, ori.z);
+  //printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
+ // printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
+  printf("Lin Pos:\nx=%f, y=%f, z=%f\n", estpos.x, estpos.y, estpos.z);
+ // printf("Ang Vel:\nx=%f, y=%f, z=%f\n", angvx, angvy, angvz);
+ // printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
+  printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y,estcom.z);
+  printf("------------------------------------\n");
 
 
   pub.Publish(data);
@@ -112,7 +130,7 @@ Vector* GetVertices(){
   return verticesp;
 }
 
-face * GetFaces(Vector* verticesp, int* facec){
+face * GetFaces(Vector* verticesp){
   FILE * file = fopen("boat.obj", "r");
   if(file == NULL){
     printf("CANT OPEN FILE\n");
@@ -147,11 +165,11 @@ face * GetFaces(Vector* verticesp, int* facec){
       count++;
     }
   }
-  *facec = count;
+  facec = count;
   return facep;
 }
 
-Vector * GetCenterOfMass(face* facep, int facec){
+Vector * GetCenterOfMass(face* facep){
   Vector * comp = (Vector*)malloc(facec * sizeof(Vector));
   face facer;
   Vector com;
@@ -170,7 +188,7 @@ double Distance(Vector v1, Vector v2){
   return dist;
 }
 
-Vector * GetNormals(face* facep, int facec){
+Vector * GetNormals(face* facep){
   Vector * normalp = (Vector*)malloc(facec * sizeof(Vector));
   face facer;
   Vector normal, v1,v2,v3,v4;
@@ -194,10 +212,35 @@ Vector * GetNormals(face* facep, int facec){
 }
 Vector OrientToNormal(double x, double y, double z, double w){
   Vector normal;
-  normal.x = 2*(x*z-w*y);
-  normal.y = 2*(y*z+w*x);
+  normal.x = 2*(x*z+w*y);
+  normal.y = 2*(y*z-w*x);
   normal.z = 1-2*(x*x+y*y);
   return normal;
+}
+
+double * dist(Vector posest){
+  double * distp = (double*)malloc(facec*sizeof(double));
+  for(int i=0; i<facec; i++){
+    distp[i] = Distance(comp[i], posest);
+  }
+  return distp;
+}
+
+Vector estcomf(double * distp, Vector norm){
+  double heuristic[facec];
+  int maxind = -1;
+  double maxheur = 0;
+  for(int i = 0; i<facec; i++){
+    heuristic[i] = 1/distp[i] + 0.1/(Distance(norm, normalp[i])+5);
+    if(heuristic[i]>maxheur){
+      maxind = i;
+      maxheur = heuristic[i];
+    }
+  }
+  if(maxind==-1){
+    exit(1);
+  }
+  return comp[maxind];
 }
 
 int main(int argc, char **argv)
@@ -214,12 +257,11 @@ int main(int argc, char **argv)
   Vector * verticesp;
   verticesp = GetVertices();
   face * facep;
-  int facec; //facecount
-  facep = GetFaces(verticesp, &facec);
-  Vector * comp;
-  comp = GetCenterOfMass(facep, facec);
-  Vector * normalp;
-  normalp = GetNormals(facep, facec);
+
+  facep = GetFaces(verticesp);
+
+  comp = GetCenterOfMass(facep);
+  normalp = GetNormals(facep );
 
   gz::transport::waitForShutdown();
   free(verticesp);
