@@ -1,11 +1,11 @@
 <?xml version='1.0'?>
 <gz version='1.0'>
   <executable name='world'>
-    <command>gz sim world.sdf</command>
+    <command>gz sim --render-engine ogre world.sdf</command>
   </executable>
 
   <executable name='SensorCode'>
-    <command>./build/SensorCode</command>
+    <command>./build/RobotClient</command>
   </executable>
 
 </gz>

@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 <sdf version="1.8">
     <world name="world_test">
-        <physics name="1ms" type="ignored">
+        <physics name="default_physics" type="ode">
             <max_step_size>0.001</max_step_size>
             <real_time_factor>1.0</real_time_factor>
         </physics>
@@ -59,9 +59,21 @@
         </model>
 
         <model name="robot">
-        <static>true</static>
+        <static>false</static>
             <link name="body">
-            <pose>0 0 0 0 0 0</pose>
+            <pose>0 0 20 0 0 0</pose>
+
+            <inertial>
+                <mass>1.14395</mass>
+                <inertia>
+                    <ixx>0.095329</ixx>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyy>0.381317</iyy>
+                    <iyz>0</iyz>
+                    <izz>0.476646</izz>
+                </inertia>
+            </inertial>
 
             <visual name="visual">
                 <geometry>
@@ -80,9 +92,9 @@
             </collision>
 
             </link>
-            <include>
+            <!--<include>
                 <uri>model://NewSensor.sdf</uri>
-            </include>
+            </include>-->
         </model>
 
     </world>
