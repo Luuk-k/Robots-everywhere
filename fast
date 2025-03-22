@@ -5,7 +5,7 @@
   </executable>
 
   <executable name='SensorCode'>
-    <command>./build/SensorCode</command>
+    <command>./build/RobotClient</command>
   </executable>
 
 </gz>
