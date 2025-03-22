@@ -20,6 +20,10 @@
         <plugin filename="gz-sim-imu-system"
             name="gz::sim::systems::Imu">
         </plugin>
+        <plugin name="ForceSubscriberPlugin" 
+            filename="/home/rutz/projects/Robots-everywhere/ForceSubPlugin/build/libForceSubscriberPlugin.so">
+            <link_name>robot</link_name>
+        </plugin>
 
         <light type="directional" name="sun">
             <cast_shadows>true</cast_shadows>
@@ -60,7 +64,7 @@
 
         <model name="robot">
         <static>true</static>
-            <link name="body">
+            <link name="robot">
             <pose>0 0 0 0 0 0</pose>
 
             <visual name="visual">
