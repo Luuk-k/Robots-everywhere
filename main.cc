@@ -4,9 +4,6 @@
 #include <chrono>
 #include <thread>
 
-#include <ForceTest.cc>
-#include <SensorCode.cc>
-
 class Vector {
 public: double x, y, z;
 };
