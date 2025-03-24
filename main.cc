@@ -51,7 +51,7 @@ void cb(const gz::msgs::IMU& _msg)
 
 	Vector ori = OrientToNormal(orix, oriy, oriz, oriw);
 	Up = ori;
-	Forward = OrienttoForward(orix, oriy, oriz, oriw);
+	Forward = OrientToForward(orix, oriy, oriz, oriw);
 
 	double linax = _msg.linear_acceleration().x();
 	double linay = _msg.linear_acceleration().y();
@@ -293,7 +293,7 @@ int init_force()
 	std::cout << "Attempting to advertise topic: " << topic_force << std::endl;
 
 	// Create a publisher on the EntityWrench topic
-	pub_force = node.Advertise<gz::msgs::EntityWrench>(topic);
+	pub_force = node.Advertise<gz::msgs::EntityWrench>(topic_force);
 
 	// Wait for a connection
 	std::cout << "Waiting for connection on topic: " << topic << std::endl;
