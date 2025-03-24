@@ -11,7 +11,7 @@
 #include <SensorCode.cc>
 
 
-static Vector ResForce;
+Vector ResForce;
 
 int init_force()
 {

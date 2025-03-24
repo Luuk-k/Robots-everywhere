@@ -37,8 +37,8 @@ int facec;
 Vector * comp;
 Vector * normalp;
 
-static Vector Forward;
-static Vector Up;
+Vector Forward;
+Vector Up;
 
 Vector OrientToNormal(double, double, double, double);
 double * dist(Vector);
