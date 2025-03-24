@@ -37,14 +37,13 @@ Vector Forward;
 Vector Up;
 
 Vector OrientToNormal(double, double, double, double);
+Vector OrientToForward(double, double, double, double);
 double* dist(Vector);
 Vector estcomf(double*, Vector);
 
 
 void cb(const gz::msgs::IMU& _msg)
 {
-
-	gz::msgs::Twist data;
 	double orix = _msg.orientation().x();
 	double oriy = _msg.orientation().y();
 	double oriz = _msg.orientation().z();
@@ -97,9 +96,6 @@ void cb(const gz::msgs::IMU& _msg)
 	// printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
 	printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y, estcom.z);
 	printf("------------------------------------\n");
-
-
-	pub.Publish(data);
 }
 
 Vector* GetVertices() {
@@ -258,11 +254,11 @@ Vector estcomf(double* distp, Vector norm) {
 
 
 
-int init_localization(int argc, char** argv)
+int init_localization()
 {	
 	std::string topic_sub = "/imu";   // subscribe to this topic
 	// Subscribe to a topic by registering a callback.
-	if (!node.Subscribe(topic_sub, Sensor::cb))
+	if (!node.Subscribe(topic_sub, cb))
 	{
 		std::cerr << "Error subscribing to topic [" << topic_sub << "]" << std::endl;
 		return -1;
@@ -294,7 +290,7 @@ int init_force()
 	std::cout << "Starting force publisher..." << std::endl;
 
 	// Define the topic for applying force
-	std::cout << "Attempting to advertise topic: " << topic << std::endl;
+	std::cout << "Attempting to advertise topic: " << topic_force << std::endl;
 
 	// Create a publisher on the EntityWrench topic
 	pub_force = node.Advertise<gz::msgs::EntityWrench>(topic);
@@ -374,7 +370,7 @@ int main()
 
 	while (true)
 	{
-		std::cout << "Publishing force... Iteration: " << i + 1 << std::endl;
+		std::cout << "Publishing force" << std::endl;
 		AddForce(Vector{ Forward.x * -1000.0f, Forward.y * -1000.0f, Forward.z * -1000.0f });
 
 		// Sleep for a second before sending the next message
