@@ -93,6 +93,11 @@ void cb(const gz::msgs::IMU &_msg)
   printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y,estcom.z);
   printf("------------------------------------\n");
 
+  if(timestamp > 6){
+    printf("Found a crack at x=%f, y=%f, z=%f on face x=%f, y=%f, z=%f.\n",estpos.x, estpos.y, estpos.z, estcom.x, estcom.y, estcom.z);
+    exit(1);
+  }
+
 
   pub.Publish(data);
 }
@@ -239,7 +244,7 @@ Vector estcomf(double * distp, Vector norm){
   int maxind = -1;
   double maxheur = 0;
   for(int i = 0; i<facec; i++){
-    heuristic[i] = 1/distp[i] + 0.1/(Distance(norm, normalp[i])+5);
+    heuristic[i] = 1/distp[i] + 0.03/(Distance(norm, normalp[i])+20);
     if(heuristic[i]>maxheur){
       maxind = i;
       maxheur = heuristic[i];
@@ -253,7 +258,7 @@ Vector estcomf(double * distp, Vector norm){
 
 
 
-int initialize(int argc, char **argv)
+int main(int argc, char **argv)
 {
   std::string topic_sub = "/imu";   // subscribe to this topic
   // Subscribe to a topic by registering a callback.
