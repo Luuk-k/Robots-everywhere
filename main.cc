@@ -96,6 +96,10 @@ void cb(const gz::msgs::IMU& _msg)
 	// printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
 	printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y, estcom.z);
 	printf("------------------------------------\n");
+	if(timestamp>12){
+		printf("Found a crack at %f, %f, %f", estpos.x, estpos.y, estpos.z);
+		exit(1);
+	}
 }
 
 Vector* GetVertices() {
@@ -349,7 +353,6 @@ void PublishForce()
 	msg.mutable_wrench()->mutable_force()->set_x(ResForce.x);  // 100N in X direction
 	msg.mutable_wrench()->mutable_force()->set_y(ResForce.y);    // 0N in Y direction
 	msg.mutable_wrench()->mutable_force()->set_z(ResForce.z); // 10,000N in Z direction
-	printf("%f\n",ResForce.z);
 
 	// Set torque values (0 here, but can be modified)
 	msg.mutable_wrench()->mutable_torque()->set_x(0.0);
