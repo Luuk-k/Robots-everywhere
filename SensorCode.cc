@@ -218,6 +218,14 @@ Vector OrientToNormal(double x, double y, double z, double w){
   return normal;
 }
 
+Vector OrienttoForward(double x, double y, double z, double w){
+  Vector forward;
+  forward.x = 2*(x*y - z*w);
+  forward.y = 1-2*(x*x + z*z);
+  forward.z = 2*(z*y + x*w);
+  return forward;
+}
+
 double * dist(Vector posest){
   double * distp = (double*)malloc(facec*sizeof(double));
   for(int i=0; i<facec; i++){
@@ -243,7 +251,9 @@ Vector estcomf(double * distp, Vector norm){
   return comp[maxind];
 }
 
-int main(int argc, char **argv)
+
+
+int initialize(int argc, char **argv)
 {
   std::string topic_sub = "/imu";   // subscribe to this topic
   // Subscribe to a topic by registering a callback.
