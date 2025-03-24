@@ -12,6 +12,8 @@ class face {
 public: Vector v1, v2, v3, v4;
 };
 
+gz::transport::Node node;
+
 double velx = 0;
 double vely = 0;
 double velz = 0;
@@ -257,7 +259,7 @@ Vector estcomf(double* distp, Vector norm) {
 
 
 int init_localization(int argc, char** argv)
-{
+{	
 	std::string topic_sub = "/imu";   // subscribe to this topic
 	// Subscribe to a topic by registering a callback.
 	if (!node.Subscribe(topic_sub, Sensor::cb))
@@ -281,27 +283,27 @@ int init_localization(int argc, char** argv)
 	return 0;
 }
 
+std::string topic_force = "/world/world_test/wrench";
+// Create a publisher on the EntityWrench topic
+gz::transport::Node::Publisher pub_force;
+
 Vector ResForce;
 
 int init_force()
 {
 	std::cout << "Starting force publisher..." << std::endl;
 
-	// Initialize Gazebo Transport Node
-	gz::transport::Node node;
-
 	// Define the topic for applying force
-	std::string topic = "/world/world_test/wrench";
 	std::cout << "Attempting to advertise topic: " << topic << std::endl;
 
 	// Create a publisher on the EntityWrench topic
-	gz::transport::Node::Publisher pub = node.Advertise<gz::msgs::EntityWrench>(topic);
+	pub_force = node.Advertise<gz::msgs::EntityWrench>(topic);
 
 	// Wait for a connection
 	std::cout << "Waiting for connection on topic: " << topic << std::endl;
 	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-	if (!pub)
+	if (!pub_force)
 	{
 		std::cerr << "Error: Could not create publisher on topic: " << topic << std::endl;
 		return -1;
@@ -353,7 +355,7 @@ void PublishForce()
 	msg.mutable_wrench()->mutable_torque()->set_y(0.0);
 	msg.mutable_wrench()->mutable_torque()->set_z(0.0);
 
-	pub.Publish(msg);
+	pub_force.Publish(msg);
 
 	ResForce.x = 0;
 	ResForce.y = 0;
@@ -370,15 +372,10 @@ int main()
 
 	std::cout << "Init finished" << std::endl;
 
-	//while (true)
-	//{
-	//	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	//}
-	// Publish the force message immediately to ensure the topic shows up
-	for (int i = 0; i < 5; ++i)
+	while (true)
 	{
 		std::cout << "Publishing force... Iteration: " << i + 1 << std::endl;
-		AddForce(Vector{ Forward.x * 1000.0f, Forward.y * 1000.0f, Forward.z * 1000.0f });
+		AddForce(Vector{ Forward.x * -1000.0f, Forward.y * -1000.0f, Forward.z * -1000.0f });
 
 		// Sleep for a second before sending the next message
 		std::this_thread::sleep_for(std::chrono::seconds(1));
