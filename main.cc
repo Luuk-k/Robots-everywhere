@@ -1,5 +1,5 @@
-#include <gz/transport/Node.hh>
-#include <gz/msgs/entity_wrench.pb.h>
+#include <gz/msgs.hh>
+#include <gz/transport.hh>
 #include <iostream>
 #include <chrono>
 #include <thread>
