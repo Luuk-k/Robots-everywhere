@@ -100,8 +100,9 @@ void cb(const gz::msgs::IMU& _msg)
 
 Vector* GetVertices() {
 	FILE* file = fopen("boat.obj", "r");
+    std::cout << "opened" << std::endl;
 	if (file == NULL) {
-		printf("CANT OPEN FILE\n");
+        std::cout << "CANT OPEN FILE" << std::endl;
 		exit(1);
 	}
 	int count = 0;
@@ -128,6 +129,7 @@ Vector* GetVertices() {
 		}
 	}
 	fclose(file);
+    std::cout << "closed" << std::endl;
 	return verticesp;
 }
 
@@ -167,6 +169,7 @@ face* GetFaces(Vector* verticesp) {
 		}
 	}
 	facec = count;
+    fclose(file);
 	return facep;
 }
 
