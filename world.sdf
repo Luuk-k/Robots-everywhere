@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <sdf version="1.8">
     <world name="world_test">
+        <gravity>0 0 0</gravity>
         <physics name="default_physics" type="ode">
             <max_step_size>0.001</max_step_size>
             <real_time_factor>1.0</real_time_factor>
@@ -20,10 +21,10 @@
         <plugin filename="gz-sim-imu-system"
             name="gz::sim::systems::Imu">
         </plugin>
-        <plugin name="ForceSubscriberPlugin" 
+        <!--<plugin name="ForceSubscriberPlugin" 
             filename="/home/rutz/projects/Robots-everywhere/ForceSubPlugin/build/libForceSubscriberPlugin.so">
             <link_name>robot</link_name>
-        </plugin>
+        </plugin>-->
 
         <light type="directional" name="sun">
             <cast_shadows>true</cast_shadows>
@@ -63,27 +64,20 @@
         </model>
 
         <model name="robot">
-<<<<<<< HEAD
         <static>true</static>
             <link name="robot">
-            <pose>0 0 0 0 0 0</pose>
-=======
-        <static>false</static>
-            <link name="body">
             <pose>0 0 20 0 0 0</pose>
-
             <inertial>
-                <mass>1.14395</mass>
+                <mass>10</mass>
                 <inertia>
-                    <ixx>0.095329</ixx>
+                    <ixx>0.1</ixx>
                     <ixy>0</ixy>
                     <ixz>0</ixz>
-                    <iyy>0.381317</iyy>
+                    <iyy>0.5</iyy>
                     <iyz>0</iyz>
-                    <izz>0.476646</izz>
+                    <izz>0.5</izz>
                 </inertia>
             </inertial>
->>>>>>> 28f95191b55989553d98cac5a22dfe7877d22218
 
             <visual name="visual">
                 <geometry>
@@ -102,9 +96,9 @@
             </collision>
 
             </link>
-            <!--<include>
+            <include>
                 <uri>model://NewSensor.sdf</uri>
-            </include>-->
+            </include>
         </model>
 
     </world>

@@ -219,7 +219,7 @@ Vector OrientToNormal(double x, double y, double z, double w) {
 	return normal;
 }
 
-Vector OrienttoForward(double x, double y, double z, double w) {
+Vector OrientToForward(double x, double y, double z, double w) {
 	Vector forward;
 	forward.x = 2 * (x * y - z * w);
 	forward.y = 1 - 2 * (x * x + z * z);
@@ -256,6 +256,7 @@ Vector estcomf(double* distp, Vector norm) {
 
 int init_localization()
 {	
+    std::cout << "init localization" << std::endl;
 	std::string topic_sub = "/imu";   // subscribe to this topic
 	// Subscribe to a topic by registering a callback.
 	if (!node.Subscribe(topic_sub, cb))
@@ -263,19 +264,19 @@ int init_localization()
 		std::cerr << "Error subscribing to topic [" << topic_sub << "]" << std::endl;
 		return -1;
 	}
-	// Zzzzzz.
+	std::cout << "subscribed" << std::endl;// Zzzzzz.
 
 	Vector* verticesp;
 	verticesp = GetVertices();
 	face* facep;
+	std::cout << "dick" << std::endl;
 
 	facep = GetFaces(verticesp);
+	std::cout << "dick 2" << std::endl;
 
 	comp = GetCenterOfMass(facep);
 	normalp = GetNormals(facep);
-
-	gz::transport::waitForShutdown();
-	free(verticesp);
+    
 	return 0;
 }
 
@@ -296,12 +297,12 @@ int init_force()
 	pub_force = node.Advertise<gz::msgs::EntityWrench>(topic_force);
 
 	// Wait for a connection
-	std::cout << "Waiting for connection on topic: " << topic << std::endl;
+	std::cout << "Waiting for connection on topic: " << topic_force << std::endl;
 	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 	if (!pub_force)
 	{
-		std::cerr << "Error: Could not create publisher on topic: " << topic << std::endl;
+		std::cerr << "Error: Could not create publisher on topic: " << topic_force << std::endl;
 		return -1;
 	}
 
@@ -372,14 +373,13 @@ int main()
 	{
 		std::cout << "Publishing force" << std::endl;
 		AddForce(Vector{ Forward.x * -1000.0f, Forward.y * -1000.0f, Forward.z * -1000.0f });
-
+        PublishForce();
 		// Sleep for a second before sending the next message
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
 
 	// Keep the node alive for a while to ensure messages are processed
 	std::this_thread::sleep_for(std::chrono::seconds(2));
-
 
 	return 0;
 }
