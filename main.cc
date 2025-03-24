@@ -349,6 +349,7 @@ void PublishForce()
 	msg.mutable_wrench()->mutable_force()->set_x(ResForce.x);  // 100N in X direction
 	msg.mutable_wrench()->mutable_force()->set_y(ResForce.y);    // 0N in Y direction
 	msg.mutable_wrench()->mutable_force()->set_z(ResForce.z); // 10,000N in Z direction
+	printf("%f\n",ResForce.z);
 
 	// Set torque values (0 here, but can be modified)
 	msg.mutable_wrench()->mutable_torque()->set_x(0.0);
@@ -375,7 +376,11 @@ int main()
 	while (true)
 	{
 		std::cout << "Publishing force" << std::endl;
-		AddForce(Vector{ Forward.x * -1000.0f, Forward.y * -1000.0f, Forward.z * -1000.0f });
+		Vector Force;
+		Force.x = Up.x * -1000;
+		Force.y = Up.y * -1000;
+		Force.z = Up.z * -1000;
+		AddForce(Force);
         PublishForce();
 		// Sleep for a second before sending the next message
 		std::this_thread::sleep_for(std::chrono::seconds(1));

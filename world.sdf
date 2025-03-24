@@ -64,7 +64,7 @@
         </model>
 
         <model name="robot">
-        <static>true</static>
+        <static>false</static>
             <link name="robot">
             <pose>0 0 20 0 0 0</pose>
             <inertial>
