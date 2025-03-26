@@ -1,7 +1,3 @@
-#ifndef FORCE_TEST
-#define FORCE_TEST
-
-
 #include <gz/msgs.hh>
 #include <gz/transport.hh>
 
@@ -37,9 +33,6 @@ int facec;
 Vector * comp;
 Vector * normalp;
 
-Vector Forward;
-Vector Up;
-
 Vector OrientToNormal(double, double, double, double);
 double * dist(Vector);
 Vector estcomf(double*, Vector);
@@ -55,8 +48,6 @@ void cb(const gz::msgs::IMU &_msg)
   double oriw = _msg.orientation().w();
 
   Vector ori = OrientToNormal(orix, oriy, oriz, oriw);
-  Up = ori;
-  Forward = OrienttoForward(orix, oriy, oriz, oriw);
 
   double linax = _msg.linear_acceleration().x();
   double linay = _msg.linear_acceleration().y();
@@ -101,6 +92,11 @@ void cb(const gz::msgs::IMU &_msg)
  // printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
   printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y,estcom.z);
   printf("------------------------------------\n");
+
+  if(timestamp > 6){
+    printf("Found a crack at x=%f, y=%f, z=%f on face x=%f, y=%f, z=%f.\n",estpos.x, estpos.y, estpos.z, estcom.x, estcom.y, estcom.z);
+    exit(1);
+  }
 
 
   pub.Publish(data);
@@ -248,7 +244,7 @@ Vector estcomf(double * distp, Vector norm){
   int maxind = -1;
   double maxheur = 0;
   for(int i = 0; i<facec; i++){
-    heuristic[i] = 1/distp[i] + 0.1/(Distance(norm, normalp[i])+5);
+    heuristic[i] = 1/distp[i] + 0.03/(Distance(norm, normalp[i])+20);
     if(heuristic[i]>maxheur){
       maxind = i;
       maxheur = heuristic[i];
@@ -262,7 +258,7 @@ Vector estcomf(double * distp, Vector norm){
 
 
 
-int init_localization(int argc, char **argv)
+int main(int argc, char **argv)
 {
   std::string topic_sub = "/imu";   // subscribe to this topic
   // Subscribe to a topic by registering a callback.
@@ -286,5 +282,3 @@ int init_localization(int argc, char **argv)
   free(verticesp);
   return 0;
 }
-
-#endif
