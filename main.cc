@@ -358,9 +358,9 @@ void PublishForce()
 	msg.mutable_entity()->set_id(9);  // Set the entity ID to 9 (your robot's ID)
 
 	// Set the force values
-	msg.mutable_wrench()->mutable_force()->set_x(0);//ResForce.x);  // 100N in X direction
-	msg.mutable_wrench()->mutable_force()->set_y(0);//ResForce.y);    // 0N in Y direction
-	msg.mutable_wrench()->mutable_force()->set_z(-100);//ResForce.z); // 10,000N in Z direction
+	msg.mutable_wrench()->mutable_force()->set_x(ResForce.x);//ResForce.x);  // 100N in X direction
+	msg.mutable_wrench()->mutable_force()->set_y(ResForce.y);//ResForce.y);    // 0N in Y direction
+	msg.mutable_wrench()->mutable_force()->set_z(ResForce.z);//ResForce.z); // 10,000N in Z direction
 
 	// Set torque values (0 here, but can be modified)
 	msg.mutable_wrench()->mutable_torque()->set_x(0.0);
@@ -392,6 +392,10 @@ int main(int argc, char** argv)
 		Force.x = Up.x * -1000;
 		Force.y = Up.y * -1000;
 		Force.z = Up.z * -1000;
+		AddForce(Force);
+		Force.x = Forward.x * 2000;
+		Force.y = Forward.y * 2000;
+		Force.z = Forward.z * 2000;
 		AddForce(Force);
         PublishForce();
 		// Sleep for a second before sending the next message
