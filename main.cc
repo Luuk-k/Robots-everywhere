@@ -1,8 +1,10 @@
+#include <cstdio>
+#include <ctime>
 #include <gz/msgs.hh>
 #include <gz/transport.hh>
 #include <iostream>
-#include <chrono>
 #include <thread>
+#include <time.h>
 
 class Vector {
 public: double x, y, z;
@@ -13,6 +15,9 @@ public: Vector v1, v2, v3, v4;
 };
 
 gz::transport::Node node;
+
+bool CanStartTick = false;
+float SimStartTime = 0.0f;
 
 double velx = 0;
 double vely = 0;
@@ -44,6 +49,8 @@ Vector estcomf(double*, Vector);
 
 void cb(const gz::msgs::IMU& _msg)
 {
+    CanStartTick = true;
+
 	double orix = _msg.orientation().x();
 	double oriy = _msg.orientation().y();
 	double oriz = _msg.orientation().z();
@@ -271,15 +278,12 @@ int init_localization()
 		std::cerr << "Error subscribing to topic [" << topic_sub << "]" << std::endl;
 		return -1;
 	}
-	std::cout << "subscribed" << std::endl;// Zzzzzz.
 
 	Vector* verticesp;
 	verticesp = GetVertices();
 	face* facep;
-	std::cout << "dick" << std::endl;
 
 	facep = GetFaces(verticesp);
-	std::cout << "dick 2" << std::endl;
 
 	comp = GetCenterOfMass(facep);
 	normalp = GetNormals(facep);
@@ -295,7 +299,7 @@ Vector ResForce;
 
 int init_force()
 {
-	std::cout << "Starting force publisher..." << std::endl;
+	std::cout << "Init force" << std::endl;
 
 	// Define the topic for applying force
 	std::cout << "Attempting to advertise topic: " << topic_force << std::endl;
@@ -361,33 +365,102 @@ void PublishForce()
 
 	pub_force.Publish(msg);
 
+    printf("\nApplied forces: %f, %f, %f\n\n", ResForce.x, ResForce.y, ResForce.z);
+
 	ResForce.x = 0;
 	ResForce.y = 0;
 	ResForce.z = 0;
 }
 
-
-int main()
+Vector GetMagneticForce() 
 {
-	std::cout << "Starting" << std::endl;
+    Vector _force;
+    float _strength = 1600.0f;
+    _force.x = -Up.x * _strength;
+    _force.y = -Up.y * _strength;
+    _force.z = -Up.z * _strength;
+    
+    return _force;  
+}
+
+enum MoveState {
+    begin,
+    straight,
+    turning,
+    stop
+};
+
+MoveState RobotMoveState = begin;
+float MoveStrength = 1500.0f;
+float MoveTime = 0.0f;
+
+void RobotMove ()
+{
+    switch (RobotMoveState) {
+    case begin: 
+        MoveTime = ((float) clock())/CLOCKS_PER_SEC; 
+        RobotMoveState = straight;
+        break;
+    case straight:
+        if ((MoveTime - ((float) clock())/CLOCKS_PER_SEC) >= 10.0f) 
+        {
+            RobotMoveState = turning;
+            break;
+        }
+
+        Vector ForwardForce;
+        ForwardForce.x = Forward.x * MoveStrength;
+        ForwardForce.y = Forward.y * MoveStrength;
+        ForwardForce.z = Forward.z * MoveStrength;
+        AddForce(ForwardForce);
+        break;
+    case turning:
+        break;
+    case stop:
+        break;
+    }
+}
+
+void init ()
+{
+    std::cout << "Starting" << std::endl;
 
 	init_force();
 	init_localization();
 
 	std::cout << "Init finished" << std::endl;
+}
 
-	while (true)
-	{
-		std::cout << "Publishing force" << std::endl;
-		Vector Force;
-		Force.x = Up.x * -1000;
-		Force.y = Up.y * -1000;
-		Force.z = Up.z * -1000;
-		AddForce(Force);
-        PublishForce();
-		// Sleep for a second before sending the next message
-		std::this_thread::sleep_for(std::chrono::seconds(1));
-	}
+void run()
+{
+    RobotMove();
+
+    // Add the force created by the magnet
+    AddForce(GetMagneticForce());
+
+    // Add the force to the robot
+    PublishForce();
+}
+
+int main()
+{	
+    init();
+
+    // Wait for the sim to start
+    while(!CanStartTick) {}
+    SimStartTime = ((float)clock())/CLOCKS_PER_SEC; 
+
+    // Looping behavior
+    while (true)
+    { 
+        // Wait to start a tick
+        while(!CanStartTick) {}
+
+        run();
+
+        // Set the bool back to false in order to wait for the next tick
+        CanStartTick = false;
+    }
 
 	// Keep the node alive for a while to ensure messages are processed
 	std::this_thread::sleep_for(std::chrono::seconds(2));
