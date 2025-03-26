@@ -26,7 +26,7 @@ double angpx = 0;
 double angpy = 0;
 double angpz = 0;
 
-double dt = 0.01;
+double dt = 0.1;
 double timestamp = 0;
 
 int facec;
