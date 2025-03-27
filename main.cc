@@ -17,18 +17,6 @@ public: Vector v1, v2, v3, v4;
 
 gz::transport::Node node;
 
-double velx = 0;
-double vely = 0;
-double velz = 0;
-
-double posx = 0;
-double posy = 0;
-double posz = 0;
-
-double angpx = 0;
-double angpy = 0;
-double angpz = 0;
-
 double dt = 0.1;
 double timestamp = 0;
 
@@ -38,6 +26,10 @@ Vector* normalp;
 
 Vector Forward;
 Vector Up;
+
+
+	double posx,posy, posz;
+	double posxl,posyl, poszl;
 
 Vector OrientToNormal(double, double, double, double);
 Vector OrientToForward(double, double, double, double);
@@ -61,26 +53,22 @@ void cb(const gz::msgs::Odometry& _msg)
 	Up = ori;
 	Forward = OrientToForward(orix, oriy, oriz, oriw);
 
-//	double linax = msg.WorldAngularAcceleration().x();//_msg.linear_acceleration().x();
-//	double linay = msg.WorldAngularAcceleration().y();//_msg.linear_acceleration().y();
-//	double linaz = msg.WorldAngularAcceleration().z();//_msg.linear_acceleration().z();
+	posxl = posx;
+	posyl = posy;
+	poszl = posz;
 
-//	double angvx = _msg.angular_velocity().x();
-//	double angvy = _msg.angular_velocity().y();
-//	double angvz = _msg.angular_velocity().z();
+	double velx, vely, velz;
 
 
-//	velx = velx + linax * dt;
-//	vely = vely + linay * dt;
-//	velz = velz + linaz * dt;
 
 	posx = _msg.pose().position().x();
 	posy = _msg.pose().position().y();
 	posz = _msg.pose().position().z();
 
-//	angpx = angpx + angvx * dt;
-//	angpy = angpy + angvy * dt;
-//	angpz = angpz + angvz * dt;
+	velx = (posx-posxl)/0.1;
+	vely = (posy-posyl)/0.1;
+	velz = (posz-poszl)/0.1;
+
 
 	timestamp = timestamp + dt;
 
@@ -98,7 +86,7 @@ void cb(const gz::msgs::Odometry& _msg)
 	printf("Time =%f s\n", timestamp);
 	printf("Orientation:\n x=%f, y=%f, z=%f\n", ori.x, ori.y, ori.z);
 //	printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
-   // printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
+    printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
 	printf("Lin Pos:\nx=%f, y=%f, z=%f\n", posx, posy, posz);
 	// printf("Ang Vel:\nx=%f, y=%f, z=%f\n", angvx, angvy, angvz);
 	// printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
