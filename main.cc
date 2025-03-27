@@ -2,6 +2,9 @@
 #include <ctime>
 #include <gz/msgs.hh>
 #include <gz/transport.hh>
+#include <gz/physics.hh>
+//#include <gz/client.hh>
+//#include <gz/sim/Link.hh>
 #include <iostream>
 #include <thread>
 #include <time.h>
@@ -31,7 +34,7 @@ double angpx = 0;
 double angpy = 0;
 double angpz = 0;
 
-double dt = 0.01;
+double dt = 0.1;
 double timestamp = 0;
 
 int facec;
@@ -47,39 +50,44 @@ double* dist(Vector);
 Vector estcomf(double*, Vector);
 
 
-void cb(const gz::msgs::IMU& _msg)
+void cb(const gz::msgs::Odometry& _msg)
 {
     CanStartTick = true;
 
-	double orix = _msg.orientation().x();
-	double oriy = _msg.orientation().y();
-	double oriz = _msg.orientation().z();
-	double oriw = _msg.orientation().w();
+//	gz::physics::WorldPtr world = gz::physics::World();
+//	gz::physics::LinkPtr link = world.GetLink("robotlink");
+//	double x = link->WorldPose().Pos().X();
+	//msg.mutable_entity()->set_id(9);
+
+	double orix = _msg.pose().orientation().x();
+	double oriy = _msg.pose().orientation().y();
+	double oriz = _msg.pose().orientation().z();
+	double oriw = _msg.pose().orientation().w();
 
 	Vector ori = OrientToNormal(orix, oriy, oriz, oriw);
 	Up = ori;
 	Forward = OrientToForward(orix, oriy, oriz, oriw);
 
-	double linax = _msg.linear_acceleration().x();
-	double linay = _msg.linear_acceleration().y();
-	double linaz = _msg.linear_acceleration().z();
+//	double linax = msg.WorldAngularAcceleration().x();//_msg.linear_acceleration().x();
+//	double linay = msg.WorldAngularAcceleration().y();//_msg.linear_acceleration().y();
+//	double linaz = msg.WorldAngularAcceleration().z();//_msg.linear_acceleration().z();
 
-	double angvx = _msg.angular_velocity().x();
-	double angvy = _msg.angular_velocity().y();
-	double angvz = _msg.angular_velocity().z();
+//	double angvx = _msg.angular_velocity().x();
+//	double angvy = _msg.angular_velocity().y();
+//	double angvz = _msg.angular_velocity().z();
 
 
-	velx = velx + linax * dt;
-	vely = vely + linay * dt;
-	velz = velz + linaz * dt;
+//	velx = velx + linax * dt;
+//	vely = vely + linay * dt;
+//	velz = velz + linaz * dt;
 
-	posx = posx + velx * dt;
-	posy = posy + vely * dt;
-	posz = posz + velz * dt;
+	posx = _msg.pose().position().x();
+	posy = _msg.pose().position().y();
+	posz = _msg.pose().position().z();
 
-	angpx = angpx + angvx * dt;
-	angpy = angpy + angvy * dt;
-	angpz = angpz + angvz * dt;
+//	angpx = angpx + angvx * dt;
+//	angpy = angpy + angvy * dt;
+//	angpz = angpz + angvz * dt;
 
 	timestamp = timestamp + dt;
 
@@ -96,14 +104,14 @@ void cb(const gz::msgs::IMU& _msg)
 
 	printf("Time =%f s\n", timestamp);
 	printf("Orientation:\n x=%f, y=%f, z=%f\n", ori.x, ori.y, ori.z);
-	//printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
+//	printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
    // printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
-	printf("Lin Pos:\nx=%f, y=%f, z=%f\n", estpos.x, estpos.y, estpos.z);
+	printf("Lin Pos:\nx=%f, y=%f, z=%f\n", posx, posy, posz);
 	// printf("Ang Vel:\nx=%f, y=%f, z=%f\n", angvx, angvy, angvz);
 	// printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
-	printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y, estcom.z);
+//	printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y, estcom.z);
 	printf("------------------------------------\n");
-	if(timestamp>12){
+	if(timestamp>199){
 		printf("Found a crack at %f, %f, %f", estpos.x, estpos.y, estpos.z);
 		exit(1);
 	}
@@ -225,20 +233,20 @@ Vector* GetNormals(face* facep) {
 	}
 	return normalp;
 }
-Vector OrientToNormal(double x, double y, double z, double w) {
-	Vector normal;
-	normal.x = 2 * (x * z + w * y);
-	normal.y = 2 * (y * z - w * x);
-	normal.z = 1 - 2 * (x * x + y * y);
-	return normal;
-}
-
 Vector OrientToForward(double x, double y, double z, double w) {
 	Vector forward;
-	forward.x = 2 * (x * y - z * w);
-	forward.y = 1 - 2 * (x * x + z * z);
-	forward.z = 2 * (z * y + x * w);
+	forward.x = 1 - 2 * (y * y + z * z);
+	forward.y = 2 * (x * y + w * z);
+	forward.z = 2 * (x * z - y * w);
 	return forward;
+}
+
+Vector OrientToNormal(double x, double y, double z, double w) {
+	Vector normal;
+	normal.x = - 2 * (x * y - z * w);
+	normal.y = -1 + 2 * (x * x + z * z);
+	normal.z = -2 * (z * y + x * w);
+	return normal;
 }
 
 double* dist(Vector posest) {
@@ -271,7 +279,7 @@ Vector estcomf(double* distp, Vector norm) {
 int init_localization()
 {	
     std::cout << "init localization" << std::endl;
-	std::string topic_sub = "/imu";   // subscribe to this topic
+	std::string topic_sub = "/model/robot/odometry";   // subscribe to this topic
 	// Subscribe to a topic by registering a callback.
 	if (!node.Subscribe(topic_sub, cb))
 	{
@@ -354,9 +362,9 @@ void PublishForce()
 	msg.mutable_entity()->set_id(9);  // Set the entity ID to 9 (your robot's ID)
 
 	// Set the force values
-	msg.mutable_wrench()->mutable_force()->set_x(ResForce.x);  // 100N in X direction
-	msg.mutable_wrench()->mutable_force()->set_y(ResForce.y);    // 0N in Y direction
-	msg.mutable_wrench()->mutable_force()->set_z(ResForce.z); // 10,000N in Z direction
+	msg.mutable_wrench()->mutable_force()->set_x(ResForce.x);//ResForce.x);  // 100N in X direction
+	msg.mutable_wrench()->mutable_force()->set_y(ResForce.y);//ResForce.y);    // 0N in Y direction
+	msg.mutable_wrench()->mutable_force()->set_z(ResForce.z);//ResForce.z); // 10,000N in Z direction
 
 	// Set torque values (0 here, but can be modified)
 	msg.mutable_wrench()->mutable_torque()->set_x(0.0);
@@ -425,6 +433,7 @@ void init ()
 {
     std::cout << "Starting" << std::endl;
 
+	//gz::client::setup(argc, argv)
 	init_force();
 	init_localization();
 
