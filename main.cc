@@ -304,6 +304,7 @@ std::string topic_force = "/world/world_test/wrench";
 gz::transport::Node::Publisher pub_force;
 
 Vector ResForce;
+Vector ResTorque;
 
 int init_force()
 {
@@ -354,6 +355,12 @@ void AddForce(Vector force)
 	ResForce.z += force.z;
 }
 
+void addTorque(Vector torque)
+{
+	ResTorque.x += torque.x;
+	ResTorque.y += torque.y;
+	ResTorque.z += torque.z;
+}
 
 void PublishForce()
 {
@@ -367,17 +374,22 @@ void PublishForce()
 	msg.mutable_wrench()->mutable_force()->set_z(ResForce.z);//ResForce.z); // 10,000N in Z direction
 
 	// Set torque values (0 here, but can be modified)
-	msg.mutable_wrench()->mutable_torque()->set_x(0.0);
-	msg.mutable_wrench()->mutable_torque()->set_y(0.0);
-	msg.mutable_wrench()->mutable_torque()->set_z(0.0);
+	msg.mutable_wrench()->mutable_torque()->set_x(ResTorque.x);
+	msg.mutable_wrench()->mutable_torque()->set_y(ResTorque.y);
+	msg.mutable_wrench()->mutable_torque()->set_z(ResTorque.z);
 
 	pub_force.Publish(msg);
 
     printf("\nApplied forces: %f, %f, %f\n\n", ResForce.x, ResForce.y, ResForce.z);
+    printf("\nApplied torque: %f, %f, %f\n\n", ResTorque.x, ResTorque.y, ResTorque.z);
 
 	ResForce.x = 0;
 	ResForce.y = 0;
 	ResForce.z = 0;
+
+	ResTorque.x = 0;
+	ResTorque.y = 0;
+	ResTorque.z = 0;
 }
 
 Vector GetMagneticForce() 
@@ -399,20 +411,24 @@ enum MoveState {
 };
 
 MoveState RobotMoveState = begin;
-float MoveStrength = 1500.0f;
-float MoveTime = 0.0f;
+float MoveStrength = 2000.0f;
+float MoveTime = 2.0f;
+float StartMoveTime = 0.0f;
+float RotateStrength = 1800.0f;
+Vector OldForward;
 
 void RobotMove ()
 {
     switch (RobotMoveState) {
     case begin: 
-        MoveTime = ((float) clock())/CLOCKS_PER_SEC; 
+        StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
         RobotMoveState = straight;
         break;
     case straight:
-        if ((MoveTime - ((float) clock())/CLOCKS_PER_SEC) >= 10.0f) 
+        if ((((float) clock())/CLOCKS_PER_SEC - StartMoveTime) >= 1.0f) 
         {
             RobotMoveState = turning;
+            OldForward = Forward;
             break;
         }
 
@@ -423,6 +439,19 @@ void RobotMove ()
         AddForce(ForwardForce);
         break;
     case turning:
+        if ((OldForward.x * Forward.x + OldForward.y * Forward.y + OldForward.z * Forward.z) < 0.02f)
+        {
+            StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
+            MoveTime = 1.5f;
+            RobotMoveState = straight;
+            break;
+        }
+        Vector Torque;
+        Torque.x = Up.x * RotateStrength; 
+        Torque.y = Up.y * RotateStrength; 
+        Torque.z = Up.z * RotateStrength; 
+        addTorque(Torque);
+
         break;
     case stop:
         break;
@@ -470,9 +499,6 @@ int main()
         // Set the bool back to false in order to wait for the next tick
         CanStartTick = false;
     }
-
-	// Keep the node alive for a while to ensure messages are processed
-	std::this_thread::sleep_for(std::chrono::seconds(2));
 
 	return 0;
 }
