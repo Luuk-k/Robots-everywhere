@@ -1,13 +1,13 @@
-#include <cstdio>
-#include <ctime>
 #include <gz/msgs.hh>
 #include <gz/transport.hh>
 #include <gz/physics.hh>
-//#include <gz/client.hh>
-//#include <gz/sim/Link.hh>
-#include <iostream>
 #include <thread>
-#include <time.h>
+#include <cstdio>
+#include <ctime>
+#include <cmath>
+#include <cstdlib>
+#include <string>
+
 
 class Vector {
 public: double x, y, z;
@@ -102,7 +102,7 @@ void cb(const gz::msgs::Odometry& _msg)
 	estcom = estcomf(disp, ori);
 
 
-	printf("Time =%f s\n", timestamp);
+	printf("Time = %.3f s\n", SimStartTime);
 	printf("Orientation:\n x=%f, y=%f, z=%f\n", ori.x, ori.y, ori.z);
 //	printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
    // printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
@@ -112,16 +112,15 @@ void cb(const gz::msgs::Odometry& _msg)
 //	printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y, estcom.z);
 	printf("------------------------------------\n");
 	if(timestamp>199){
-		printf("Found a crack at %f, %f, %f", estpos.x, estpos.y, estpos.z);
+		printf("Found a crack at %f, %f, %f\n", estpos.x, estpos.y, estpos.z);
 		exit(1);
 	}
 }
 
 Vector* GetVertices() {
 	FILE* file = fopen("boat.obj", "r");
-    std::cout << "opened" << std::endl;
 	if (file == NULL) {
-        std::cout << "CANT OPEN FILE" << std::endl;
+        printf("CANT OPEN FILE\n");
 		exit(1);
 	}
 	int count = 0;
@@ -148,7 +147,6 @@ Vector* GetVertices() {
 		}
 	}
 	fclose(file);
-    std::cout << "closed" << std::endl;
 	return verticesp;
 }
 
@@ -278,13 +276,13 @@ Vector estcomf(double* distp, Vector norm) {
 
 int init_localization()
 {	
-    std::cout << "init localization" << std::endl;
+	printf("Init localization...\n");
 	std::string topic_sub = "/model/robot/odometry";   // subscribe to this topic
 	// Subscribe to a topic by registering a callback.
 	if (!node.Subscribe(topic_sub, cb))
 	{
-		std::cerr << "Error subscribing to topic [" << topic_sub << "]" << std::endl;
-		return -1;
+		printf("Error subscribing to topic [%s]", topic_sub.c_str());
+		exit(1);
 	}
 
 	Vector* verticesp;
@@ -308,42 +306,24 @@ Vector ResTorque;
 
 int init_force()
 {
-	std::cout << "Init force" << std::endl;
+	printf("Init force...\n");
 
-	// Define the topic for applying force
-	std::cout << "Attempting to advertise topic: " << topic_force << std::endl;
 
 	// Create a publisher on the EntityWrench topic
 	pub_force = node.Advertise<gz::msgs::EntityWrench>(topic_force);
 
 	// Wait for a connection
-	std::cout << "Waiting for connection on topic: " << topic_force << std::endl;
 	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 	if (!pub_force)
 	{
-		std::cerr << "Error: Could not create publisher on topic: " << topic_force << std::endl;
-		return -1;
+		printf("Error: Could not create publisher on topic: %s" ,topic_force.c_str());
+		exit(1);
 	}
-
-	std::cout << "Publisher created successfully." << std::endl;
 
 	ResForce.x = 0;
 	ResForce.y = 0;
 	ResForce.z = 0;
-
-	//// Publish the force message immediately to ensure the topic shows up
-	//for (int i = 0; i < 5; ++i)
-	//{
-	//    std::cout << "Publishing force... Iteration: " << i + 1 << std::endl;
-	//    pub.Publish(msg);
-	//    
-	//    // Sleep for a second before sending the next message
-	//    std::this_thread::sleep_for(std::chrono::seconds(1));
-	//}
-
-	//// Keep the node alive for a while to ensure messages are processed
-	//std::this_thread::sleep_for(std::chrono::seconds(2));
 
 	return 0;
 }
@@ -380,7 +360,7 @@ void PublishForce()
 
 	pub_force.Publish(msg);
 
-    printf("\nApplied forces: %f, %f, %f\n\n", ResForce.x, ResForce.y, ResForce.z);
+    printf("\nApplied forces: %f, %f, %f", ResForce.x, ResForce.y, ResForce.z);
     printf("\nApplied torque: %f, %f, %f\n\n", ResTorque.x, ResTorque.y, ResTorque.z);
 
 	ResForce.x = 0;
@@ -406,28 +386,53 @@ Vector GetMagneticForce()
 enum MoveState {
     begin,
     straight,
-    turning,
-    stop
+    turning
 };
 
 MoveState RobotMoveState = begin;
 float MoveStrength = 2000.0f;
-float MoveTime = 2.0f;
+float MoveTime = 5.0f;
 float StartMoveTime = 0.0f;
-float RotateStrength = 1800.0f;
+float RotateStrength = -1350.0f;
 Vector OldForward;
+bool IsRotatingAround = false;
+float WaitTime = 0.0f;
+bool NeedsToStop = false;
 
 void RobotMove ()
 {
-    switch (RobotMoveState) {
+	
+    if ((((float) clock())/CLOCKS_PER_SEC - StartMoveTime) < WaitTime) 
+	{	
+		return;
+	}
+
+	WaitTime = 0.0f;
+
+	if (NeedsToStop)
+	{
+		
+	}
+
+    switch (RobotMoveState) 
+	{
     case begin: 
         StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
         RobotMoveState = straight;
         break;
     case straight:
-        if ((((float) clock())/CLOCKS_PER_SEC - StartMoveTime) >= 1.0f) 
+        if ((((float) clock())/CLOCKS_PER_SEC - StartMoveTime) >= MoveTime) 
         {
             RobotMoveState = turning;
+
+			// Add a force in the direction opposite to the movement
+			Vector force = Vector{Forward.x * -MoveStrength, Forward.y * -MoveStrength, Forward.z * -MoveStrength};	
+			AddForce(force);
+
+			// Setup variable for the robot to wait
+            StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
+			WaitTime = 1.0f;
+
             OldForward = Forward;
             break;
         }
@@ -441,9 +446,24 @@ void RobotMove ()
     case turning:
         if ((OldForward.x * Forward.x + OldForward.y * Forward.y + OldForward.z * Forward.z) < 0.02f)
         {
-            StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
-            MoveTime = 1.5f;
-            RobotMoveState = straight;
+			// Setup variables for the robot to wait
+			StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
+			WaitTime = 1.0f;
+
+			// Have to the robot move 1.5 secs if it already rotated once
+			if (IsRotatingAround)
+			{
+				MoveTime = 5.0f;
+				RotateStrength *= -1.0f;
+				IsRotatingAround = false;
+			} else 
+			{
+				MoveTime = 1.0f;
+				IsRotatingAround = true;
+			}
+
+			// Robot goes into begin to start with a straight movement
+            RobotMoveState = begin;
             break;
         }
         Vector Torque;
@@ -453,20 +473,16 @@ void RobotMove ()
         addTorque(Torque);
 
         break;
-    case stop:
-        break;
     }
 }
 
 void init ()
 {
-    std::cout << "Starting" << std::endl;
-
-	//gz::client::setup(argc, argv)
+    printf("Starting...\n\n");
 	init_force();
 	init_localization();
 
-	std::cout << "Init finished" << std::endl;
+	printf("\nInit finished\n\n");
 }
 
 void run()
@@ -485,6 +501,7 @@ int main()
     init();
 
     // Wait for the sim to start
+	printf("Waiting for start of simulation...\n");
     while(!CanStartTick) {}
     SimStartTime = ((float)clock())/CLOCKS_PER_SEC; 
 
