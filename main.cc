@@ -25,10 +25,7 @@ float SimStartTime = 0.0f;
 double velx = 0;
 double vely = 0;
 double velz = 0;
-
-double posx = 0;
-double posy = 0;
-double posz = 0;
+double vel = 0.0f;
 
 double angpx = 0;
 double angpy = 0;
@@ -44,9 +41,8 @@ Vector* normalp;
 Vector Forward;
 Vector Up;
 
-
-	double posx,posy, posz;
-	double posxl,posyl, poszl;
+double posx,posy,posz;
+double posxl,posyl,poszl;
 
 Vector OrientToNormal(double, double, double, double);
 Vector OrientToForward(double, double, double, double);
@@ -87,7 +83,7 @@ void cb(const gz::msgs::Odometry& _msg)
 	velx = (posx-posxl)/0.1;
 	vely = (posy-posyl)/0.1;
 	velz = (posz-poszl)/0.1;
-
+	vel = sqrt(pow(velx,2.0f)+pow(vely,2.0f)+pow(velz,2.0f));
 
 	timestamp = timestamp + dt;
 
@@ -375,7 +371,7 @@ void PublishForce()
 Vector GetMagneticForce() 
 {
     Vector _force;
-    float _strength = 1600.0f;
+    float _strength = 1500.0f;
     _force.x = -Up.x * _strength;
     _force.y = -Up.y * _strength;
     _force.z = -Up.z * _strength;
@@ -390,30 +386,41 @@ enum MoveState {
 };
 
 MoveState RobotMoveState = begin;
-float MoveStrength = 2000.0f;
-float MoveTime = 5.0f;
+float MoveStrength = 1500.0f;
+float MoveTime = 10.0f;
 float StartMoveTime = 0.0f;
-float RotateStrength = -1350.0f;
+float RotateStrength = -1400.0f;
 Vector OldForward;
 bool IsRotatingAround = false;
 float WaitTime = 0.0f;
 bool NeedsToStop = false;
+float MaxSpeed = 2.0f;
 
 void RobotMove ()
 {
-	
+	if (NeedsToStop)
+	{
+		if (vel < 0.1f) 
+		{
+			NeedsToStop = false;
+        	StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 	
+			return;
+		}
+
+		Vector force;
+		force.x = -Forward.x * MoveStrength;// * vel;
+		force.y = -Forward.y * MoveStrength;// * vel;
+		force.z = -Forward.z * MoveStrength;// * vel;
+
+		AddForce(force);
+	}
+
     if ((((float) clock())/CLOCKS_PER_SEC - StartMoveTime) < WaitTime) 
 	{	
 		return;
 	}
 
 	WaitTime = 0.0f;
-
-	if (NeedsToStop)
-	{
-		
-	}
-
     switch (RobotMoveState) 
 	{
     case begin: 
@@ -425,9 +432,7 @@ void RobotMove ()
         {
             RobotMoveState = turning;
 
-			// Add a force in the direction opposite to the movement
-			Vector force = Vector{Forward.x * -MoveStrength, Forward.y * -MoveStrength, Forward.z * -MoveStrength};	
-			AddForce(force);
+			if (vel > 0.5f) NeedsToStop = true;
 
 			// Setup variable for the robot to wait
             StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
@@ -438,13 +443,13 @@ void RobotMove ()
         }
 
         Vector ForwardForce;
-        ForwardForce.x = Forward.x * MoveStrength;
-        ForwardForce.y = Forward.y * MoveStrength;
-        ForwardForce.z = Forward.z * MoveStrength;
+        ForwardForce.x = Forward.x * MoveStrength * (MaxSpeed - vel);
+        ForwardForce.y = Forward.y * MoveStrength * (MaxSpeed - vel);
+        ForwardForce.z = Forward.z * MoveStrength * (MaxSpeed - vel);
         AddForce(ForwardForce);
         break;
     case turning:
-        if ((OldForward.x * Forward.x + OldForward.y * Forward.y + OldForward.z * Forward.z) < 0.02f)
+        if ((OldForward.x * Forward.x + OldForward.y * Forward.y + OldForward.z * Forward.z) < 0.05f)
         {
 			// Setup variables for the robot to wait
 			StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
@@ -453,7 +458,7 @@ void RobotMove ()
 			// Have to the robot move 1.5 secs if it already rotated once
 			if (IsRotatingAround)
 			{
-				MoveTime = 5.0f;
+				MoveTime = 10.0f;
 				RotateStrength *= -1.0f;
 				IsRotatingAround = false;
 			} else 
@@ -461,6 +466,12 @@ void RobotMove ()
 				MoveTime = 1.0f;
 				IsRotatingAround = true;
 			}
+
+        	Vector NegTorque;
+        	NegTorque.x = -Up.x * RotateStrength; 
+       	 	NegTorque.y = -Up.y * RotateStrength; 
+        	NegTorque.z = -Up.z * RotateStrength; 
+        	addTorque(NegTorque);
 
 			// Robot goes into begin to start with a straight movement
             RobotMoveState = begin;
