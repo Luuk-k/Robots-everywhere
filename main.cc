@@ -22,6 +22,24 @@ gz::transport::Node node;
 bool CanStartTick = false;
 float SimStartTime = 0.0f;
 
+enum MoveState {
+    begin,
+    straight,
+    turning,
+	stop
+};
+
+MoveState RobotMoveState = begin;
+float MoveStrength = 2000.0f;
+float MoveTime = 9.0f;
+float StartMoveTime = 0.0f;
+float RotateStrength = -250.0f;
+Vector OldForward;
+bool IsRotatingAround = false;
+float WaitTime = 0.0f;
+bool NeedsToStop = false;
+float MaxSpeed = 2.0f;
+
 double velx = 0;
 double vely = 0;
 double velz = 0;
@@ -43,6 +61,8 @@ Vector Up;
 
 double posx,posy,posz;
 double posxl,posyl,poszl;
+
+bool FoundCrack = false;
 
 Vector OrientToNormal(double, double, double, double);
 Vector OrientToForward(double, double, double, double);
@@ -97,8 +117,8 @@ void cb(const gz::msgs::Odometry& _msg)
 	Vector estcom;
 	estcom = estcomf(disp, ori);
 
-
-	printf("Time = %.3f s\n", SimStartTime);
+	float time = ((float)clock()/CLOCKS_PER_SEC) - SimStartTime;
+	printf("Time = %.3f s\n", time);
 	printf("Orientation:\n x=%f, y=%f, z=%f\n", ori.x, ori.y, ori.z);
 //	printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
     printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
@@ -107,12 +127,19 @@ void cb(const gz::msgs::Odometry& _msg)
 	// printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
 //	printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y, estcom.z);
 	printf("------------------------------------\n");
-	if(timestamp>199){
-		printf("Found a crack at %f, %f, %f\n", estpos.x, estpos.y, estpos.z);
+
+	if(time>20.0f){
+		printf("\n\nFound a crack at %f, %f, %f\n", estpos.x, estpos.y, estpos.z);
+		if(!FoundCrack)
+		{
+			FoundCrack = true;
+			NeedsToStop = true;
+			WaitTime = 0.5f;
+		}
+
 		FILE  * file = fopen("./data/crack2/location","w");
 		fprintf(file,"Crack found at position:x=%f, y=%f, z=%f",estpos.x,estpos.y,estpos.z);
 		fclose(file);
-		exit(1);
 	}
 }
 
@@ -235,6 +262,10 @@ Vector OrientToForward(double x, double y, double z, double w) {
 	forward.x = 1 - 2 * (y * y + z * z);
 	forward.y = 2 * (x * y + w * z);
 	forward.z = 2 * (x * z - y * w);
+	
+	//forward.x = - 2 * (x * z + y * w);
+	//forward.y = - 2 * (y * z - x * w);
+	//forward.z = - 1 + 2 * (x * x + y * y);
 	return forward;
 }
 
@@ -374,7 +405,10 @@ void PublishForce()
 Vector GetMagneticForce() 
 {
     Vector _force;
-    float _strength = 1500.0f;
+	float _strength = 1500.0f;
+	if (RobotMoveState == turning && !NeedsToStop)
+		_strength = 100.0f;
+
     _force.x = -Up.x * _strength;
     _force.y = -Up.y * _strength;
     _force.z = -Up.z * _strength;
@@ -382,28 +416,11 @@ Vector GetMagneticForce()
     return _force;  
 }
 
-enum MoveState {
-    begin,
-    straight,
-    turning
-};
-
-MoveState RobotMoveState = begin;
-float MoveStrength = 1500.0f;
-float MoveTime = 10.0f;
-float StartMoveTime = 0.0f;
-float RotateStrength = -1400.0f;
-Vector OldForward;
-bool IsRotatingAround = false;
-float WaitTime = 0.0f;
-bool NeedsToStop = false;
-float MaxSpeed = 2.0f;
-
 void RobotMove ()
 {
 	if (NeedsToStop)
 	{
-		if (vel < 0.1f) 
+		if (vel < 0.05f) 
 		{
 			NeedsToStop = false;
         	StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 	
@@ -411,11 +428,12 @@ void RobotMove ()
 		}
 
 		Vector force;
-		force.x = -Forward.x * MoveStrength;// * vel;
-		force.y = -Forward.y * MoveStrength;// * vel;
-		force.z = -Forward.z * MoveStrength;// * vel;
+		force.x = -Forward.x * MoveStrength * vel;
+		force.y = -Forward.y * MoveStrength * vel;
+		force.z = -Forward.z * MoveStrength * vel;
 
 		AddForce(force);
+		return;
 	}
 
     if ((((float) clock())/CLOCKS_PER_SEC - StartMoveTime) < WaitTime) 
@@ -424,6 +442,9 @@ void RobotMove ()
 	}
 
 	WaitTime = 0.0f;
+
+	if (FoundCrack) exit(1);
+
     switch (RobotMoveState) 
 	{
     case begin: 
@@ -435,7 +456,7 @@ void RobotMove ()
         {
             RobotMoveState = turning;
 
-			if (vel > 0.5f) NeedsToStop = true;
+			if (vel > 0.1f) NeedsToStop = true;
 
 			// Setup variable for the robot to wait
             StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
@@ -461,12 +482,12 @@ void RobotMove ()
 			// Have to the robot move 1.5 secs if it already rotated once
 			if (IsRotatingAround)
 			{
-				MoveTime = 10.0f;
+				MoveTime = 9.0f;
 				RotateStrength *= -1.0f;
 				IsRotatingAround = false;
 			} else 
 			{
-				MoveTime = 1.0f;
+				MoveTime = 0.5f;
 				IsRotatingAround = true;
 			}
 
@@ -487,6 +508,9 @@ void RobotMove ()
         addTorque(Torque);
 
         break;
+	case stop:
+		exit(1);
+		break;
     }
 }
 
