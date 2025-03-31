@@ -109,6 +109,9 @@ void cb(const gz::msgs::Odometry& _msg)
 	printf("------------------------------------\n");
 	if(timestamp>199){
 		printf("Found a crack at %f, %f, %f\n", estpos.x, estpos.y, estpos.z);
+		FILE  * file = fopen("./data/crack2/location","w");
+		fprintf(file,"Crack found at position:x=%f, y=%f, z=%f",estpos.x,estpos.y,estpos.z);
+		fclose(file);
 		exit(1);
 	}
 }
