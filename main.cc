@@ -119,9 +119,9 @@ void cb(const gz::msgs::Odometry& _msg)
 
 	float time = ((float)clock()/CLOCKS_PER_SEC) - SimStartTime;
 
-	if(time>20.0f && !FoundCrack){
+	if(time>35.0f && !FoundCrack){
 		printf("\n------------------------------------\n");
-		printf("\nFound a crack at %f, %f, %f\n", estpos.x, estpos.y, estpos.z);
+		printf("\nFound a crack:\nx=%.3f, y=%.3f, z=%.3f\n", estpos.x, estpos.y, estpos.z);
 		printf("\n------------------------------------\n");
 
 		FoundCrack = true;
@@ -408,7 +408,7 @@ void RobotMove ()
 {
 	if (NeedsToStop)
 	{
-		if (vel < 0.05f) 
+		if (vel < 0.1f) 
 		{
 			NeedsToStop = false;
         	StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 	
@@ -507,9 +507,9 @@ void PrintData()
 	if (FoundCrack) return;
 	printf("\n--------------|Data|----------------\n");
 	printf("Time = %.3f s\n\n", ((float)clock()/CLOCKS_PER_SEC) - SimStartTime);
-    printf("Applied forces: %.3f, %.3f, %.3f\n", ResForce.x, ResForce.y, ResForce.z);
-    printf("Applied torque: %.3f, %.3f, %.3f\n\n", ResTorque.x, ResTorque.y, ResTorque.z);
-	printf("Orientation:\n x=%.3f, y=%.3f, z=%.3f\n", Up.x, Up.y, Up.z);
+    printf("Applied forces:\nx=%.3f, y=%.3f, z=%.3f\n", ResForce.x, ResForce.y, ResForce.z);
+    printf("Applied torque:\nx=%.3f, y=%.3f, z=%.3f\n\n", ResTorque.x, ResTorque.y, ResTorque.z);
+	printf("Orientation:\nx=%.3f, y=%.3f, z=%.3f\n", Up.x, Up.y, Up.z);
     printf("Lin Vel:\nx=%.3f, y=%.3f, z=%.3f\n", velx, vely, velz);
 	printf("Lin Pos:\nx=%.3f, y=%.3f, z=%.3f\n", posx, posy, posz);
 	printf("\n------------------------------------\n");
