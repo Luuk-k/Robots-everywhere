@@ -127,6 +127,7 @@ void cb(const gz::msgs::Odometry& _msg)
 	// printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
 //	printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y, estcom.z);
 	printf("------------------------------------\n");
+
 	if(time>20.0f){
 		printf("\n\nFound a crack at %f, %f, %f\n", estpos.x, estpos.y, estpos.z);
 		if(!FoundCrack)
@@ -135,6 +136,10 @@ void cb(const gz::msgs::Odometry& _msg)
 			NeedsToStop = true;
 			WaitTime = 0.5f;
 		}
+
+		FILE  * file = fopen("./data/crack2/location","w");
+		fprintf(file,"Crack found at position:x=%f, y=%f, z=%f",estpos.x,estpos.y,estpos.z);
+		fclose(file);
 	}
 }
 
