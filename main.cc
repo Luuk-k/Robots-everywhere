@@ -92,10 +92,6 @@ void cb(const gz::msgs::Odometry& _msg)
 	posyl = posy;
 	poszl = posz;
 
-	double velx, vely, velz;
-
-
-
 	posx = _msg.pose().position().x();
 	posy = _msg.pose().position().y();
 	posz = _msg.pose().position().z();
