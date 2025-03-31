@@ -118,28 +118,19 @@ void cb(const gz::msgs::Odometry& _msg)
 	estcom = estcomf(disp, ori);
 
 	float time = ((float)clock()/CLOCKS_PER_SEC) - SimStartTime;
-	printf("Time = %.3f s\n", time);
-	printf("Orientation:\n x=%f, y=%f, z=%f\n", ori.x, ori.y, ori.z);
-//	printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
-    printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
-	printf("Lin Pos:\nx=%f, y=%f, z=%f\n", posx, posy, posz);
-	// printf("Ang Vel:\nx=%f, y=%f, z=%f\n", angvx, angvy, angvz);
-	// printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
-//	printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y, estcom.z);
-	printf("------------------------------------\n");
 
-	if(time>20.0f){
-		printf("\n\nFound a crack at %f, %f, %f\n", estpos.x, estpos.y, estpos.z);
-		if(!FoundCrack)
-		{
-			FoundCrack = true;
-			NeedsToStop = true;
-			WaitTime = 0.5f;
-		}
+	if(time>20.0f && !FoundCrack){
+		printf("\n------------------------------------\n");
+		printf("\nFound a crack at %f, %f, %f\n", estpos.x, estpos.y, estpos.z);
+		printf("\n------------------------------------\n");
+
+		FoundCrack = true;
+		NeedsToStop = true;
+		WaitTime = 0.5f;
 
 		FILE  * file = fopen("./data/crack2/location","w");
 		fprintf(file,"Crack found at position:x=%f, y=%f, z=%f",estpos.x,estpos.y,estpos.z);
-		fclose(file);
+		//fclose(file);
 	}
 }
 
@@ -390,9 +381,6 @@ void PublishForce()
 
 	pub_force.Publish(msg);
 
-    printf("\nApplied forces: %f, %f, %f", ResForce.x, ResForce.y, ResForce.z);
-    printf("\nApplied torque: %f, %f, %f\n\n", ResTorque.x, ResTorque.y, ResTorque.z);
-
 	ResForce.x = 0;
 	ResForce.y = 0;
 	ResForce.z = 0;
@@ -514,6 +502,19 @@ void RobotMove ()
     }
 }
 
+void PrintData()
+{
+	if (FoundCrack) return;
+	printf("\n--------------|Data|----------------\n");
+	printf("Time = %.3f s\n\n", ((float)clock()/CLOCKS_PER_SEC) - SimStartTime);
+    printf("Applied forces: %.3f, %.3f, %.3f\n", ResForce.x, ResForce.y, ResForce.z);
+    printf("Applied torque: %.3f, %.3f, %.3f\n\n", ResTorque.x, ResTorque.y, ResTorque.z);
+	printf("Orientation:\n x=%.3f, y=%.3f, z=%.3f\n", Up.x, Up.y, Up.z);
+    printf("Lin Vel:\nx=%.3f, y=%.3f, z=%.3f\n", velx, vely, velz);
+	printf("Lin Pos:\nx=%.3f, y=%.3f, z=%.3f\n", posx, posy, posz);
+	printf("\n------------------------------------\n");
+}
+
 void init ()
 {
     printf("Starting...\n\n");
@@ -529,6 +530,8 @@ void run()
 
     // Add the force created by the magnet
     AddForce(GetMagneticForce());
+
+	PrintData();
 
     // Add the force to the robot
     PublishForce();
