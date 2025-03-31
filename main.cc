@@ -1,11 +1,13 @@
 #include <gz/msgs.hh>
 #include <gz/transport.hh>
 #include <gz/physics.hh>
-//#include <gz/client.hh>
-//#include <gz/sim/Link.hh>
-#include <iostream>
-#include <chrono>
 #include <thread>
+#include <cstdio>
+#include <ctime>
+#include <cmath>
+#include <cstdlib>
+#include <string>
+
 
 class Vector {
 public: double x, y, z;
@@ -17,6 +19,36 @@ public: Vector v1, v2, v3, v4;
 
 gz::transport::Node node;
 
+bool CanStartTick = false;
+float SimStartTime = 0.0f;
+
+enum MoveState {
+    begin,
+    straight,
+    turning,
+	stop
+};
+
+MoveState RobotMoveState = begin;
+float MoveStrength = 2000.0f;
+float MoveTime = 9.0f;
+float StartMoveTime = 0.0f;
+float RotateStrength = -250.0f;
+Vector OldForward;
+bool IsRotatingAround = false;
+float WaitTime = 0.0f;
+bool NeedsToStop = false;
+float MaxSpeed = 2.0f;
+
+double velx = 0;
+double vely = 0;
+double velz = 0;
+double vel = 0.0f;
+
+double angpx = 0;
+double angpy = 0;
+double angpz = 0;
+
 double dt = 0.1;
 double timestamp = 0;
 
@@ -27,9 +59,10 @@ Vector* normalp;
 Vector Forward;
 Vector Up;
 
+double posx,posy,posz;
+double posxl,posyl,poszl;
 
-	double posx,posy, posz;
-	double posxl,posyl, poszl;
+bool FoundCrack = false;
 
 Vector OrientToNormal(double, double, double, double);
 Vector OrientToForward(double, double, double, double);
@@ -39,6 +72,8 @@ Vector estcomf(double*, Vector);
 
 void cb(const gz::msgs::Odometry& _msg)
 {
+    CanStartTick = true;
+
 //	gz::physics::WorldPtr world = gz::physics::World();
 //	gz::physics::LinkPtr link = world.GetLink("robotlink");
 //	double x = link->WorldPose().Pos().X();
@@ -68,7 +103,7 @@ void cb(const gz::msgs::Odometry& _msg)
 	velx = (posx-posxl)/0.1;
 	vely = (posy-posyl)/0.1;
 	velz = (posz-poszl)/0.1;
-
+	vel = sqrt(pow(velx,2.0f)+pow(vely,2.0f)+pow(velz,2.0f));
 
 	timestamp = timestamp + dt;
 
@@ -82,27 +117,27 @@ void cb(const gz::msgs::Odometry& _msg)
 	Vector estcom;
 	estcom = estcomf(disp, ori);
 
+	float time = ((float)clock()/CLOCKS_PER_SEC) - SimStartTime;
 
-	printf("Time =%f s\n", timestamp);
-	printf("Orientation:\n x=%f, y=%f, z=%f\n", ori.x, ori.y, ori.z);
-//	printf("Lin Acc:\nx=%f, y=%f, z=%f\n", linax, linay, linaz);
-    printf("Lin Vel:\nx=%f, y=%f, z=%f\n", velx, vely, velz);
-	printf("Lin Pos:\nx=%f, y=%f, z=%f\n", posx, posy, posz);
-	// printf("Ang Vel:\nx=%f, y=%f, z=%f\n", angvx, angvy, angvz);
-	// printf("Ang pos:\nx=%f, y=%f, z=%f\n", angpx, angpy, angpz);
-//	printf("On face: x=%f, y=%f. z=%f\n", estcom.x, estcom.y, estcom.z);
-	printf("------------------------------------\n");
-	if(timestamp>199){
-		printf("Found a crack at %f, %f, %f", estpos.x, estpos.y, estpos.z);
-		exit(1);
+	if(time>20.0f && !FoundCrack){
+		printf("\n------------------------------------\n");
+		printf("\nFound a crack at %f, %f, %f\n", estpos.x, estpos.y, estpos.z);
+		printf("\n------------------------------------\n");
+
+		FoundCrack = true;
+		NeedsToStop = true;
+		WaitTime = 0.5f;
+
+		FILE  * file = fopen("./data/crack2/location","w");
+		fprintf(file,"Crack found at position:x=%f, y=%f, z=%f",estpos.x,estpos.y,estpos.z);
+		//fclose(file);
 	}
 }
 
 Vector* GetVertices() {
 	FILE* file = fopen("boat.obj", "r");
-    std::cout << "opened" << std::endl;
 	if (file == NULL) {
-        std::cout << "CANT OPEN FILE" << std::endl;
+        printf("CANT OPEN FILE\n");
 		exit(1);
 	}
 	int count = 0;
@@ -129,7 +164,6 @@ Vector* GetVertices() {
 		}
 	}
 	fclose(file);
-    std::cout << "closed" << std::endl;
 	return verticesp;
 }
 
@@ -219,6 +253,10 @@ Vector OrientToForward(double x, double y, double z, double w) {
 	forward.x = 1 - 2 * (y * y + z * z);
 	forward.y = 2 * (x * y + w * z);
 	forward.z = 2 * (x * z - y * w);
+	
+	//forward.x = - 2 * (x * z + y * w);
+	//forward.y = - 2 * (y * z - x * w);
+	//forward.z = - 1 + 2 * (x * x + y * y);
 	return forward;
 }
 
@@ -259,23 +297,20 @@ Vector estcomf(double* distp, Vector norm) {
 
 int init_localization()
 {	
-    std::cout << "init localization" << std::endl;
+	printf("Init localization...\n");
 	std::string topic_sub = "/model/robot/odometry";   // subscribe to this topic
 	// Subscribe to a topic by registering a callback.
 	if (!node.Subscribe(topic_sub, cb))
 	{
-		std::cerr << "Error subscribing to topic [" << topic_sub << "]" << std::endl;
-		return -1;
+		printf("Error subscribing to topic [%s]", topic_sub.c_str());
+		exit(1);
 	}
-	std::cout << "subscribed" << std::endl;// Zzzzzz.
 
 	Vector* verticesp;
 	verticesp = GetVertices();
 	face* facep;
-	std::cout << "dick" << std::endl;
 
 	facep = GetFaces(verticesp);
-	std::cout << "dick 2" << std::endl;
 
 	comp = GetCenterOfMass(facep);
 	normalp = GetNormals(facep);
@@ -288,45 +323,28 @@ std::string topic_force = "/world/world_test/wrench";
 gz::transport::Node::Publisher pub_force;
 
 Vector ResForce;
+Vector ResTorque;
 
 int init_force()
 {
-	std::cout << "Starting force publisher..." << std::endl;
+	printf("Init force...\n");
 
-	// Define the topic for applying force
-	std::cout << "Attempting to advertise topic: " << topic_force << std::endl;
 
 	// Create a publisher on the EntityWrench topic
 	pub_force = node.Advertise<gz::msgs::EntityWrench>(topic_force);
 
 	// Wait for a connection
-	std::cout << "Waiting for connection on topic: " << topic_force << std::endl;
 	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
 	if (!pub_force)
 	{
-		std::cerr << "Error: Could not create publisher on topic: " << topic_force << std::endl;
-		return -1;
+		printf("Error: Could not create publisher on topic: %s" ,topic_force.c_str());
+		exit(1);
 	}
-
-	std::cout << "Publisher created successfully." << std::endl;
 
 	ResForce.x = 0;
 	ResForce.y = 0;
 	ResForce.z = 0;
-
-	//// Publish the force message immediately to ensure the topic shows up
-	//for (int i = 0; i < 5; ++i)
-	//{
-	//    std::cout << "Publishing force... Iteration: " << i + 1 << std::endl;
-	//    pub.Publish(msg);
-	//    
-	//    // Sleep for a second before sending the next message
-	//    std::this_thread::sleep_for(std::chrono::seconds(1));
-	//}
-
-	//// Keep the node alive for a while to ensure messages are processed
-	//std::this_thread::sleep_for(std::chrono::seconds(2));
 
 	return 0;
 }
@@ -338,6 +356,12 @@ void AddForce(Vector force)
 	ResForce.z += force.z;
 }
 
+void addTorque(Vector torque)
+{
+	ResTorque.x += torque.x;
+	ResTorque.y += torque.y;
+	ResTorque.z += torque.z;
+}
 
 void PublishForce()
 {
@@ -351,47 +375,188 @@ void PublishForce()
 	msg.mutable_wrench()->mutable_force()->set_z(ResForce.z);//ResForce.z); // 10,000N in Z direction
 
 	// Set torque values (0 here, but can be modified)
-	msg.mutable_wrench()->mutable_torque()->set_x(0.0);
-	msg.mutable_wrench()->mutable_torque()->set_y(0.0);
-	msg.mutable_wrench()->mutable_torque()->set_z(0.0);
+	msg.mutable_wrench()->mutable_torque()->set_x(ResTorque.x);
+	msg.mutable_wrench()->mutable_torque()->set_y(ResTorque.y);
+	msg.mutable_wrench()->mutable_torque()->set_z(ResTorque.z);
 
 	pub_force.Publish(msg);
 
 	ResForce.x = 0;
 	ResForce.y = 0;
 	ResForce.z = 0;
+
+	ResTorque.x = 0;
+	ResTorque.y = 0;
+	ResTorque.z = 0;
 }
 
-
-int main(int argc, char** argv)
+Vector GetMagneticForce() 
 {
-	std::cout << "Starting" << std::endl;
+    Vector _force;
+	float _strength = 1500.0f;
+	if (RobotMoveState == turning && !NeedsToStop)
+		_strength = 100.0f;
 
-	//gz::client::setup(argc, argv)
+    _force.x = -Up.x * _strength;
+    _force.y = -Up.y * _strength;
+    _force.z = -Up.z * _strength;
+    
+    return _force;  
+}
+
+void RobotMove ()
+{
+	if (NeedsToStop)
+	{
+		if (vel < 0.05f) 
+		{
+			NeedsToStop = false;
+        	StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 	
+			return;
+		}
+
+		Vector force;
+		force.x = -Forward.x * MoveStrength * vel;
+		force.y = -Forward.y * MoveStrength * vel;
+		force.z = -Forward.z * MoveStrength * vel;
+
+		AddForce(force);
+		return;
+	}
+
+    if ((((float) clock())/CLOCKS_PER_SEC - StartMoveTime) < WaitTime) 
+	{	
+		return;
+	}
+
+	WaitTime = 0.0f;
+
+	if (FoundCrack) exit(1);
+
+    switch (RobotMoveState) 
+	{
+    case begin: 
+        StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
+        RobotMoveState = straight;
+        break;
+    case straight:
+        if ((((float) clock())/CLOCKS_PER_SEC - StartMoveTime) >= MoveTime) 
+        {
+            RobotMoveState = turning;
+
+			if (vel > 0.1f) NeedsToStop = true;
+
+			// Setup variable for the robot to wait
+            StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
+			WaitTime = 1.0f;
+
+            OldForward = Forward;
+            break;
+        }
+
+        Vector ForwardForce;
+        ForwardForce.x = Forward.x * MoveStrength * (MaxSpeed - vel);
+        ForwardForce.y = Forward.y * MoveStrength * (MaxSpeed - vel);
+        ForwardForce.z = Forward.z * MoveStrength * (MaxSpeed - vel);
+        AddForce(ForwardForce);
+        break;
+    case turning:
+        if ((OldForward.x * Forward.x + OldForward.y * Forward.y + OldForward.z * Forward.z) < 0.05f)
+        {
+			// Setup variables for the robot to wait
+			StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
+			WaitTime = 1.0f;
+
+			// Have to the robot move 1.5 secs if it already rotated once
+			if (IsRotatingAround)
+			{
+				MoveTime = 9.0f;
+				RotateStrength *= -1.0f;
+				IsRotatingAround = false;
+			} else 
+			{
+				MoveTime = 0.5f;
+				IsRotatingAround = true;
+			}
+
+        	Vector NegTorque;
+        	NegTorque.x = -Up.x * RotateStrength; 
+       	 	NegTorque.y = -Up.y * RotateStrength; 
+        	NegTorque.z = -Up.z * RotateStrength; 
+        	addTorque(NegTorque);
+
+			// Robot goes into begin to start with a straight movement
+            RobotMoveState = begin;
+            break;
+        }
+        Vector Torque;
+        Torque.x = Up.x * RotateStrength; 
+        Torque.y = Up.y * RotateStrength; 
+        Torque.z = Up.z * RotateStrength; 
+        addTorque(Torque);
+
+        break;
+	case stop:
+		exit(1);
+		break;
+    }
+}
+
+void PrintData()
+{
+	if (FoundCrack) return;
+	printf("\n--------------|Data|----------------\n");
+	printf("Time = %.3f s\n\n", ((float)clock()/CLOCKS_PER_SEC) - SimStartTime);
+    printf("Applied forces: %.3f, %.3f, %.3f\n", ResForce.x, ResForce.y, ResForce.z);
+    printf("Applied torque: %.3f, %.3f, %.3f\n\n", ResTorque.x, ResTorque.y, ResTorque.z);
+	printf("Orientation:\n x=%.3f, y=%.3f, z=%.3f\n", Up.x, Up.y, Up.z);
+    printf("Lin Vel:\nx=%.3f, y=%.3f, z=%.3f\n", velx, vely, velz);
+	printf("Lin Pos:\nx=%.3f, y=%.3f, z=%.3f\n", posx, posy, posz);
+	printf("\n------------------------------------\n");
+}
+
+void init ()
+{
+    printf("Starting...\n\n");
 	init_force();
 	init_localization();
 
-	std::cout << "Init finished" << std::endl;
+	printf("\nInit finished\n\n");
+}
 
-	while (true)
-	{
-		std::cout << "Publishing force" << std::endl;
-		Vector Force;
-		Force.x = Up.x * -1000;
-		Force.y = Up.y * -1000;
-		Force.z = Up.z * -1000;
-		AddForce(Force);
-		Force.x = Forward.x * 2000;
-		Force.y = Forward.y * 2000;
-		Force.z = Forward.z * 2000;
-		AddForce(Force);
-        PublishForce();
-		// Sleep for a second before sending the next message
-		std::this_thread::sleep_for(std::chrono::seconds(1));
-	}
+void run()
+{
+    RobotMove();
 
-	// Keep the node alive for a while to ensure messages are processed
-	std::this_thread::sleep_for(std::chrono::seconds(2));
+    // Add the force created by the magnet
+    AddForce(GetMagneticForce());
+
+	PrintData();
+
+    // Add the force to the robot
+    PublishForce();
+}
+
+int main()
+{	
+    init();
+
+    // Wait for the sim to start
+	printf("Waiting for start of simulation...\n");
+    while(!CanStartTick) {}
+    SimStartTime = ((float)clock())/CLOCKS_PER_SEC; 
+
+    // Looping behavior
+    while (true)
+    { 
+        // Wait to start a tick
+        while(!CanStartTick) {}
+
+        run();
+
+        // Set the bool back to false in order to wait for the next tick
+        CanStartTick = false;
+    }
 
 	return 0;
 }
