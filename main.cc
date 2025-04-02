@@ -115,7 +115,7 @@ void cb(const gz::msgs::Odometry& _msg)
 
 	float time = ((float)clock()/CLOCKS_PER_SEC) - SimStartTime;
 
-	if(time>35.0f && !FoundCrack){
+	if(time>45.0f && !FoundCrack){
 		printf("\n------------------------------------\n");
 		printf("\nFound a crack:\nx=%.3f, y=%.3f, z=%.3f\n", estpos.x, estpos.y, estpos.z);
 		printf("\n------------------------------------\n");
