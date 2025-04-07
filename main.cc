@@ -9,19 +9,24 @@
 #include <string>
 
 
+// Custom 3D vector class
 class Vector {
 public: double x, y, z;
 };
 
+// Class for representing a face with a max of 4 vertices
 class face {
 public: Vector v1, v2, v3, v4;
 };
 
+// Node use for communication with the sim
 gz::transport::Node node;
 
+// variables needed to keep sync with the sim
 bool CanStartTick = false;
 float SimStartTime = 0.0f;
 
+// State for the robot state machine
 enum MoveState {
     begin,
     straight,
@@ -29,6 +34,7 @@ enum MoveState {
 	stop
 };
 
+// Robot movement variables
 MoveState RobotMoveState = begin;
 float MoveStrength = 2000.0f;
 float MoveTime = 9.0f;
@@ -40,6 +46,7 @@ float WaitTime = 0.0f;
 bool NeedsToStop = false;
 float MaxSpeed = 2.0f;
 
+// Variables used for localization
 double velx = 0;
 double vely = 0;
 double velz = 0;
@@ -49,6 +56,9 @@ double angpx = 0;
 double angpy = 0;
 double angpz = 0;
 
+double posx,posy,posz;
+double posxl,posyl,poszl;
+
 double dt = 0.1;
 double timestamp = 0;
 
@@ -56,14 +66,13 @@ int facec;
 Vector* comp;
 Vector* normalp;
 
+// Robot up and forward vectors
 Vector Forward;
 Vector Up;
 
-double posx,posy,posz;
-double posxl,posyl,poszl;
-
 bool FoundCrack = false;
 
+// Specify some functions
 Vector OrientToNormal(double, double, double, double);
 Vector OrientToForward(double, double, double, double);
 double* dist(Vector);
@@ -72,30 +81,31 @@ Vector estcomf(double*, Vector);
 
 void cb(const gz::msgs::Odometry& _msg)
 {
+	// Set to true to signal that a tick has happend
     CanStartTick = true;
 
-//	gz::physics::WorldPtr world = gz::physics::World();
-//	gz::physics::LinkPtr link = world.GetLink("robotlink");
-//	double x = link->WorldPose().Pos().X();
-	//msg.mutable_entity()->set_id(9);
-
+	// Get the quaternion of the robot orientation 
 	double orix = _msg.pose().orientation().x();
 	double oriy = _msg.pose().orientation().y();
 	double oriz = _msg.pose().orientation().z();
 	double oriw = _msg.pose().orientation().w();
 
+	// Get the normal and forward vectors
 	Vector ori = OrientToNormal(orix, oriy, oriz, oriw);
 	Up = ori;
 	Forward = OrientToForward(orix, oriy, oriz, oriw);
 
+	// Save the last position
 	posxl = posx;
 	posyl = posy;
 	poszl = posz;
 
+	// Get the new position
 	posx = _msg.pose().position().x();
 	posy = _msg.pose().position().y();
 	posz = _msg.pose().position().z();
 
+	// Save the velocity
 	velx = (posx-posxl)/0.1;
 	vely = (posy-posyl)/0.1;
 	velz = (posz-poszl)/0.1;
@@ -103,6 +113,7 @@ void cb(const gz::msgs::Odometry& _msg)
 
 	timestamp = timestamp + dt;
 
+	// Update the estimate position
 	Vector estpos;
 	estpos.x = posx;
 	estpos.y = posy;
@@ -115,21 +126,25 @@ void cb(const gz::msgs::Odometry& _msg)
 
 	float time = ((float)clock()/CLOCKS_PER_SEC) - SimStartTime;
 
+	// Check if a crack is found
 	if(time>45.0f && !FoundCrack){
 		printf("\n------------------------------------\n");
 		printf("\nFound a crack:\nx=%.3f, y=%.3f, z=%.3f\n", estpos.x, estpos.y, estpos.z);
 		printf("\n------------------------------------\n");
 
+		// Have the robot slow down and wait for 0.5 sec
 		FoundCrack = true;
 		NeedsToStop = true;
 		WaitTime = 0.5f;
 
+		// Write the crack location to a txt file
 		FILE  * file = fopen("./data/crack2/location","w");
 		fprintf(file,"Crack found at position:x=%f, y=%f, z=%f",estpos.x,estpos.y,estpos.z);
-		//fclose(file);
+		//fclose(file); // Does not write to the file for some reason
 	}
 }
 
+// Get the vertices from the .obj file
 Vector* GetVertices() {
 	FILE* file = fopen("boat.obj", "r");
 	if (file == NULL) {
@@ -163,6 +178,7 @@ Vector* GetVertices() {
 	return verticesp;
 }
 
+// Get the faces from the .obj file
 face* GetFaces(Vector* verticesp) {
 	FILE* file = fopen("boat.obj", "r");
 	if (file == NULL) {
@@ -203,6 +219,7 @@ face* GetFaces(Vector* verticesp) {
 	return facep;
 }
 
+// Returns a pointer to the vector of the center of mass of the robot
 Vector* GetCenterOfMass(face* facep) {
 	Vector* comp = (Vector*)malloc(facec * sizeof(Vector));
 	face facer;
@@ -217,11 +234,13 @@ Vector* GetCenterOfMass(face* facep) {
 	return comp;
 }
 
+// Returns the distance between two vectors
 double Distance(Vector v1, Vector v2) {
 	double dist = sqrt(pow(v1.x - v2.x, 2) + pow(v1.y - v2.y, 2) + pow(v1.z - v2.z, 2));
 	return dist;
 }
 
+// Returns a pointer to the normal vector of the inputed face
 Vector* GetNormals(face* facep) {
 	Vector* normalp = (Vector*)malloc(facec * sizeof(Vector));
 	face facer;
@@ -244,18 +263,18 @@ Vector* GetNormals(face* facep) {
 	}
 	return normalp;
 }
+
+// Return the robot forward vector
 Vector OrientToForward(double x, double y, double z, double w) {
 	Vector forward;
 	forward.x = 1 - 2 * (y * y + z * z);
 	forward.y = 2 * (x * y + w * z);
 	forward.z = 2 * (x * z - y * w);
-	
-	//forward.x = - 2 * (x * z + y * w);
-	//forward.y = - 2 * (y * z - x * w);
-	//forward.z = - 1 + 2 * (x * x + y * y);
+
 	return forward;
 }
 
+// Return the robot normal vector `(aka robot up vector)
 Vector OrientToNormal(double x, double y, double z, double w) {
 	Vector normal;
 	normal.x = - 2 * (x * y - z * w);
@@ -289,8 +308,7 @@ Vector estcomf(double* distp, Vector norm) {
 	return comp[maxind];
 }
 
-
-
+// Initialize the variables for localization and setup the communication with the sim
 int init_localization()
 {	
 	printf("Init localization...\n");
@@ -314,13 +332,15 @@ int init_localization()
 	return 0;
 }
 
+// Specify a topic and create a publisher
 std::string topic_force = "/world/world_test/wrench";
-// Create a publisher on the EntityWrench topic
 gz::transport::Node::Publisher pub_force;
 
+// Resulting torque and force. Used for publishing to the simulation
 Vector ResForce;
 Vector ResTorque;
 
+// Initialize the force parameters and setup the connection with the sim
 int init_force()
 {
 	printf("Init force...\n");
@@ -345,6 +365,7 @@ int init_force()
 	return 0;
 }
 
+// Add a force to the robot
 void AddForce(Vector force)
 {
 	ResForce.x += force.x;
@@ -352,6 +373,7 @@ void AddForce(Vector force)
 	ResForce.z += force.z;
 }
 
+// Add torque to the robot
 void addTorque(Vector torque)
 {
 	ResTorque.x += torque.x;
@@ -359,6 +381,7 @@ void addTorque(Vector torque)
 	ResTorque.z += torque.z;
 }
 
+// Publish the forces to the specified topic, which is read by the sim
 void PublishForce()
 {
 	// Create and configure the EntityWrench message
@@ -375,8 +398,10 @@ void PublishForce()
 	msg.mutable_wrench()->mutable_torque()->set_y(ResTorque.y);
 	msg.mutable_wrench()->mutable_torque()->set_z(ResTorque.z);
 
+	// Publish the message to the topic
 	pub_force.Publish(msg);
 
+	// Reset the resulting force and torque
 	ResForce.x = 0;
 	ResForce.y = 0;
 	ResForce.z = 0;
@@ -386,6 +411,7 @@ void PublishForce()
 	ResTorque.z = 0;
 }
 
+// Return a vector of the magnetic force
 Vector GetMagneticForce() 
 {
     Vector _force;
@@ -400,8 +426,10 @@ Vector GetMagneticForce()
     return _force;  
 }
 
+// Algorithm to move the robot over the ship hull
 void RobotMove ()
 {
+	// Slow down the robot
 	if (NeedsToStop)
 	{
 		if (vel < 0.1f) 
@@ -420,6 +448,7 @@ void RobotMove ()
 		return;
 	}
 
+	// Let the robot wait
     if ((((float) clock())/CLOCKS_PER_SEC - StartMoveTime) < WaitTime) 
 	{	
 		return;
@@ -427,15 +456,16 @@ void RobotMove ()
 
 	WaitTime = 0.0f;
 
+	// If a crack is found the program exits
 	if (FoundCrack) exit(1);
 
     switch (RobotMoveState) 
 	{
-    case begin: 
+    case begin: // Called before a straight part. It sets up the star time 
         StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
         RobotMoveState = straight;
         break;
-    case straight:
+    case straight: // Move for a certain amount of time
         if ((((float) clock())/CLOCKS_PER_SEC - StartMoveTime) >= MoveTime) 
         {
             RobotMoveState = turning;
@@ -450,6 +480,7 @@ void RobotMove ()
             break;
         }
 
+		// Move forwards
         Vector ForwardForce;
         ForwardForce.x = Forward.x * MoveStrength * (MaxSpeed - vel);
         ForwardForce.y = Forward.y * MoveStrength * (MaxSpeed - vel);
@@ -463,18 +494,20 @@ void RobotMove ()
 			StartMoveTime = ((float) clock())/CLOCKS_PER_SEC; 
 			WaitTime = 1.0f;
 
-			// Have to the robot move 1.5 secs if it already rotated once
+			// Have to the robot move 0.5 secs if it already rotated once
 			if (IsRotatingAround)
 			{
 				MoveTime = 9.0f;
 				RotateStrength *= -1.0f;
 				IsRotatingAround = false;
-			} else 
+			} 
+			else 
 			{
 				MoveTime = 0.5f;
 				IsRotatingAround = true;
 			}
 
+			// Apply a torque in the opposite direction
         	Vector NegTorque;
         	NegTorque.x = -Up.x * RotateStrength; 
        	 	NegTorque.y = -Up.y * RotateStrength; 
@@ -485,6 +518,8 @@ void RobotMove ()
             RobotMoveState = begin;
             break;
         }
+
+		// Rotate the robot
         Vector Torque;
         Torque.x = Up.x * RotateStrength; 
         Torque.y = Up.y * RotateStrength; 
@@ -492,12 +527,13 @@ void RobotMove ()
         addTorque(Torque);
 
         break;
-	case stop:
+	case stop: // Do not move the robot
 		exit(1);
 		break;
     }
 }
 
+// Print the data about position and forces on the terminal
 void PrintData()
 {
 	if (FoundCrack) return;
@@ -511,6 +547,7 @@ void PrintData()
 	printf("\n------------------------------------\n");
 }
 
+// Initiatlize the RobotClient
 void init ()
 {
     printf("Starting...\n\n");
@@ -520,6 +557,7 @@ void init ()
 	printf("\nInit finished\n\n");
 }
 
+// Repeatedly run to apply force and move the robot
 void run()
 {
     RobotMove();
@@ -535,6 +573,7 @@ void run()
 
 int main()
 {	
+	// Initialize the code
     init();
 
     // Wait for the sim to start
