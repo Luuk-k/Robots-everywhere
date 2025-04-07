@@ -19,12 +19,28 @@ The plugin can be added by clicking on the three dots at the top right of the GU
 
 The code can be run by performing the following commands in a seperate terminal:
 ```
-./build.sh
+./rebuild.sh
 ./build/RobotClient
 ```
+
 After starting the code the client will wait for the start of the of the simulation, which can be started by clicking the play button in the left bottom of the Gazebo GUI.
 The client code will then terminate after finding a crack.  
 
 Pausing the simulation will pause movement, but does not guarantee that the robot will continue correctly after unpausing.  
 
 The client code can also be stopped by focussing on the terminal and pressing CTRL+C.
+
+## File structure
+The simulation world is specified in the world.sdf file and can be opened by using the sim.sh script.  
+
+The Robot code is written in one file named main.cc. This file contains all the code needed to run the robot client.  
+
+CMakeList.txt constains the cmake build code. The code can be build with the rebuild.sh and the build.sh script. Rebuild will also rebuild the make files created by CMake.  
+After building a build directory will be created. Here the executable is stored.  
+
+The RobotModel and ship folder contain the robot and ship models.  
+
+The data folder contains the possible data the robot could aquire. The file with the location of the crack can be found in the crack2 subfolder.  
+
+Lastly, the old and ForceSubPlugin contain old code from previous attempts.
+
